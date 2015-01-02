@@ -366,3 +366,60 @@ vc4_force_user_unmap(struct drm_gem_object *gem_obj)
 
 	drm_vma_node_unmap(&gem_obj->vma_node, dev->anon_inode->i_mapping);
 }
+
+/* vc4_inactive_shrinker_count - Walks the BO cache counting how many
+ * GEM objects could be freed from it.
+ */
+unsigned long
+vc4_inactive_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
+{
+	struct vc4_dev *vc4 = container_of(shrinker,
+					   struct vc4_dev,
+					   inactive_shrinker);
+	struct drm_device *dev = vc4->dev;
+	unsigned long count = 0;
+	struct vc4_bo *bo;
+
+	DRM_INFO("shrink count\n");
+	if (!mutex_trylock(&dev->struct_mutex))
+		return 0;
+
+	list_for_each_entry(bo, &vc4->bo_cache.time_list, unref_head) {
+		DRM_INFO("shrink counted %dkb\n", bo->base.base.size);
+		count += bo->base.base.size >> PAGE_SHIFT;
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return count;
+}
+
+unsigned long
+vc4_inactive_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
+{
+	struct vc4_dev *vc4 = container_of(shrinker,
+					   struct vc4_dev,
+					   inactive_shrinker);
+	struct drm_device *dev = vc4->dev;
+	unsigned long freed = 0;
+
+	DRM_INFO("shrink scan\n");
+	if (!mutex_trylock(&dev->struct_mutex))
+		return SHRINK_STOP;
+
+	while (!list_empty(&vc4->bo_cache.time_list)) {
+		struct vc4_bo *bo = list_last_entry(&vc4->bo_cache.time_list,
+						    struct vc4_bo, unref_head);
+
+		DRM_INFO("shrink free %dk\n", bo->base.base.size / 1024);
+
+		freed += bo->base.base.size >> PAGE_SHIFT;
+		list_del(&bo->unref_head);
+		list_del(&bo->size_head);
+		drm_gem_cma_free_object(&bo->base.base);
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return freed;
+}

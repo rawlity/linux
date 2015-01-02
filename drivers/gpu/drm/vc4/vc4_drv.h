@@ -92,6 +92,8 @@ struct vc4_dev {
 		struct timer_list timer;
 		struct work_struct reset_work;
 	} hangcheck;
+
+	struct shrinker inactive_shrinker;
 };
 
 static inline struct vc4_dev *
@@ -324,6 +326,10 @@ struct dma_buf *vc4_prime_export(struct drm_device *dev,
 				 struct drm_gem_object *obj, int flags);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 void vc4_force_user_unmap(struct drm_gem_object *gem_obj);
+unsigned long vc4_inactive_shrinker_count(struct shrinker *shrinker,
+					  struct shrink_control *sc);
+unsigned long vc4_inactive_shrinker_scan(struct shrinker *shrinker,
+					 struct shrink_control *sc);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);

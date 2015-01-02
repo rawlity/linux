@@ -595,4 +595,9 @@ vc4_gem_init(struct drm_device *dev)
 	INIT_WORK(&vc4->job_done_work, vc4_job_done_work);
 
 	vc4_bo_cache_init(dev);
+
+	vc4->inactive_shrinker.count_objects = vc4_inactive_shrinker_count;
+	vc4->inactive_shrinker.scan_objects = vc4_inactive_shrinker_scan;
+	vc4->inactive_shrinker.seeks = DEFAULT_SEEKS;
+	register_shrinker(&vc4->inactive_shrinker);
 }
