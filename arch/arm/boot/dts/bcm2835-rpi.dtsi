@@ -61,6 +61,11 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+};
+
 &sdhci {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_gpio48>;
@@ -91,4 +96,8 @@
 &spi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_gpio7>;
+};
+
+&v3d {
+	power-domains = <&power RPI_POWER_DOMAIN_V3D>;
 };
