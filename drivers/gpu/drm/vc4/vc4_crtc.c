@@ -168,23 +168,30 @@ static void vc4_crtc_disable(struct drm_crtc *crtc)
 
 	require_hvs_enabled(dev);
 
+	msleep(100);
+
+	DRM_INFO("Setting PV_V_CONTROL\n");
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
+	msleep(100);
 
 	if (HVS_READ(SCALER_DISPCTRLX(vc4_crtc->channel)) &
 	    SCALER_DISPCTRLX_ENABLE) {
+		DRM_INFO("Setting DISPCTRLX !enable\n");
 		HVS_WRITE(SCALER_DISPCTRLX(vc4_crtc->channel),
 			  SCALER_DISPCTRLX_RESET);
+		msleep(100);
 
 		/*
 		 * While the docs say that reset is self-clearing, it
 		 * seems it doesn't actually.
 		 */
+		DRM_INFO("Setting DISPCTRLX !reset\n");
 		HVS_WRITE(SCALER_DISPCTRLX(vc4_crtc->channel), 0);
+		msleep(100);
 	}
 
 	/* Once we leave, the scaler should be disabled and its fifo empty. */
-
 	WARN_ON_ONCE(HVS_READ(SCALER_DISPCTRLX(vc4_crtc->channel)) &
 		     SCALER_DISPCTRLX_RESET);
 
@@ -207,13 +214,17 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 
 	require_hvs_enabled(dev);
 
+	msleep(100);
+
 	/* Turn on the scaler, which will wait for vstart to start
 	 * compositing.
 	 */
+	DRM_INFO("Setting DISPCTRLX_ENABLE\n");
 	HVS_WRITE(SCALER_DISPCTRLX(vc4_crtc->channel),
 		  VC4_SET_FIELD(mode->hdisplay, SCALER_DISPCTRLX_WIDTH) |
 		  VC4_SET_FIELD(mode->vdisplay, SCALER_DISPCTRLX_HEIGHT) |
 		  SCALER_DISPCTRLX_ENABLE);
+	msleep(100);
 
 	/* The FIFO should still be empty at this point, since the PV
 	 * is disabled, and thus we haven't seen the start.
@@ -223,8 +234,10 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 		     SCALER_DISPSTATX_EMPTY);
 
 	/* Turn on the pixel valve, which will emit the vstart signal. */
+	DRM_INFO("Setting PV_V_CONTROL enable\n");
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
+	msleep(100);
 }
 
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
@@ -609,10 +622,15 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	/* Disable any existing PV interrupts. */
 	CRTC_WRITE(PV_INTEN, 0);
 	/* Clear any current PV interrupt flags, so we only see new events. */
+	DRM_INFO("PV_STAT %d before: 0x%08x\n", vc4_crtc->channel, CRTC_READ(PV_STAT));
 	CRTC_WRITE(PV_STAT,
 		   PV_STAT_HVS_OF |
 		   PV_STAT_PV_UF |
 		   PV_STAT_HVS_UF);
+	DRM_INFO("PV_STAT %d after: 0x%08x\n", vc4_crtc->channel, CRTC_READ(PV_STAT));
+	msleep(20);
+	DRM_INFO("PV_STAT %d after: 0x%08x\n", vc4_crtc->channel, CRTC_READ(PV_STAT));
+
 	CRTC_WRITE(PV_INTSTAT,
 		   PV_INT_VFP_START |
 		   PV_INT_OF_UF);
