@@ -341,7 +341,8 @@ int vc4_enable_vblank(struct drm_device *dev, int crtc_id)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = vc4->crtc[crtc_id];
 
-	CRTC_WRITE(PV_INTEN, PV_INT_VFP_START);
+	vc4_crtc->pv_inten |= PV_INT_VFP_START;
+	CRTC_WRITE(PV_INTEN, vc4_crtc->pv_inten);
 
 	return 0;
 }
@@ -351,7 +352,8 @@ void vc4_disable_vblank(struct drm_device *dev, int crtc_id)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_crtc *vc4_crtc = vc4->crtc[crtc_id];
 
-	CRTC_WRITE(PV_INTEN, 0);
+	vc4_crtc->pv_inten &= ~PV_INT_VFP_START;
+	CRTC_WRITE(PV_INTEN, vc4_crtc->pv_inten);
 }
 
 static void
@@ -382,6 +384,32 @@ static irqreturn_t vc4_crtc_irq_handler(int irq, void *data)
 		ret = IRQ_HANDLED;
 	}
 
+	if (stat & PV_INT_OF_UF) {
+		struct drm_device *dev = vc4_crtc->base.dev;
+		u32 pv_stat = CRTC_READ(PV_STAT);
+
+		DRM_ERROR("PV overflow/underflow.  PV_STAT = 0x%08x%s%s%s.\n",
+			  pv_stat,
+			  (pv_stat & PV_STAT_HVS_OF) ? " hvs_of" : "",
+			  (pv_stat & PV_STAT_PV_UF) ? " pv_uf" : "",
+			  (pv_stat & PV_STAT_HVS_UF) ? " hvs_uf" : "");
+
+		/* Disable the error reporting in the future, so we
+		 * don't spam the logs.
+		 */
+		spin_lock(&dev->vbl_lock);
+		vc4_crtc->pv_inten &= ~PV_INT_OF_UF;
+		CRTC_WRITE(PV_INTEN, vc4_crtc->pv_inten);
+		spin_unlock(&dev->vbl_lock);
+
+		/* Clear the bit so it won't produce debug again on
+		 * vblank IRQs.  It won't get re-enabled since
+		 * PV_INTEN is disabled.
+		 */
+		CRTC_WRITE(PV_INTSTAT, PV_INT_OF_UF);
+
+		ret = IRQ_HANDLED;
+	}
 	return ret;
 }
 
@@ -578,10 +606,24 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 		break;
 	}
 
+	/* Disable any existing PV interrupts. */
 	CRTC_WRITE(PV_INTEN, 0);
-	CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
+	/* Clear any current PV interrupt flags, so we only see new events. */
+	CRTC_WRITE(PV_STAT,
+		   PV_STAT_HVS_OF |
+		   PV_STAT_PV_UF |
+		   PV_STAT_HVS_UF);
+	CRTC_WRITE(PV_INTSTAT,
+		   PV_INT_VFP_START |
+		   PV_INT_OF_UF);
 	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
 			       vc4_crtc_irq_handler, 0, "vc4 crtc", vc4_crtc);
+	/*
+	 * Enable overflow/underflow interrupts, and leave vblank to
+	 * be enabled on demand by DRM core.
+	 */
+	vc4_crtc->pv_inten = PV_INT_OF_UF;
+	CRTC_WRITE(PV_INTEN, vc4_crtc->pv_inten);
 
 	platform_set_drvdata(pdev, vc4_crtc);
 

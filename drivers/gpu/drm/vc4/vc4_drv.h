@@ -152,6 +152,8 @@ struct vc4_crtc {
 
 	u32 dlist_size; /* in dwords */
 
+	u32 pv_inten;
+
 	struct drm_pending_vblank_event *event;
 };
 

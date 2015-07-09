@@ -213,6 +213,7 @@
 
 #define PV_INTEN				0x24
 #define PV_INTSTAT				0x28
+# define PV_INT_OF_UF				(1 << 10)
 # define PV_INT_VID_IDLE			(1 << 9)
 # define PV_INT_VFP_END				(1 << 8)
 # define PV_INT_VFP_START			(1 << 7)
@@ -225,6 +226,21 @@
 # define PV_INT_HSYNC_START			(1 << 0)
 
 #define PV_STAT					0x2c
+/*
+ * Set when the HVS tried to push pixels with the PV FIFO full.
+ * Write 1 to clear.
+ */
+# define PV_STAT_HVS_OF				(1 << 10)
+/*
+ * Set when the display controller tried get pixels with the PV FIFO
+ * empty.  Write 1 to clear.
+ */
+# define PV_STAT_PV_UF				(1 << 9)
+/*
+ * Set when the HVS reported insufficient bandwidth for the frame (PV
+ * FIFO was empty during HACT).  Write 1 to clear.
+ */
+# define PV_STAT_HVS_UF				(1 << 8)
 
 #define PV_HACT_ACT				0x30
 
