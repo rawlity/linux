@@ -171,12 +171,6 @@ static void vc4_crtc_disable(struct drm_crtc *crtc)
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
 
-	if (drm_crtc_index(crtc) == 0) {
-		do {
-			cpu_relax();
-		} while (CRTC_READ(PV_STAT) & (PV_STAT_RUNNING_MASK));
-	}
-
 	if (HVS_READ(SCALER_DISPCTRLX(vc4_crtc->channel)) &
 	    SCALER_DISPCTRLX_ENABLE) {
 		HVS_WRITE(SCALER_DISPCTRLX(vc4_crtc->channel),
