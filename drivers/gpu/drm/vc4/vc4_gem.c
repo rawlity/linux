@@ -75,7 +75,7 @@ vc4_hangcheck_elapsed(unsigned long data)
 	uint32_t ct0ca, ct1ca;
 
 	/* If idle, we can stop watching for hangs. */
-	if (list_empty(&vc4->job_list))
+	if (list_empty(&vc4->bin_job_list) && list_empty(&vc4->render_job_list))
 		return;
 
 	ct0ca = V3D_READ(V3D_CTNCA(0));
@@ -189,11 +189,13 @@ vc4_flush_caches(struct drm_device *dev)
  * The job_lock should be held during this.
  */
 void
-vc4_submit_next_job(struct drm_device *dev)
+vc4_submit_next_bin_job(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_exec_info *exec = vc4_first_job(vc4);
+	struct vc4_exec_info *exec;
 
+again:
+	exec = vc4_first_bin_job(vc4);
 	if (!exec)
 		return;
 
@@ -203,9 +205,38 @@ vc4_submit_next_job(struct drm_device *dev)
 	V3D_WRITE(V3D_BPOA, 0);
 	V3D_WRITE(V3D_BPOS, 0);
 
-	if (exec->ct0ca != exec->ct0ea)
+	/* Either put the job in the binner if it uses the binner, or
+	 * immediately move it to the to-be-rendered queue.
+	 */
+	if (exec->ct0ca != exec->ct0ea) {
 		submit_cl(dev, 0, exec->ct0ca, exec->ct0ea);
+	} else {
+		vc4_move_job_to_render(dev, exec);
+		goto again;
+	}
+}
+
+void
+vc4_submit_next_render_job(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
+
+	if (!exec)
+		return;
+
 	submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
+}
+
+void
+vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	bool was_empty = list_empty(&vc4->render_job_list);
+
+	list_move_tail(&exec->head, &vc4->render_job_list);
+	if (was_empty)
+		vc4_submit_next_render_job(dev);
 }
 
 static void
@@ -246,14 +277,15 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec)
 	exec->seqno = seqno;
 	vc4_update_bo_seqnos(exec, seqno);
 
+	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	list_add_tail(&exec->head, &vc4->job_list);
 
 	/* If no job was executing, kick ours off.  Otherwise, it'll
 	 * get started when the previous job's frame done interrupt
 	 * occurs.
 	 */
-	if (vc4_first_job(vc4) == exec) {
-		vc4_submit_next_job(dev);
+	if (vc4_first_bin_job(vc4) == exec) {
+		vc4_submit_next_bin_job(dev);
 		vc4_queue_hangcheck(dev);
 	}
 
@@ -641,7 +673,8 @@ vc4_gem_init(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	INIT_LIST_HEAD(&vc4->job_list);
+	INIT_LIST_HEAD(&vc4->bin_job_list);
+	INIT_LIST_HEAD(&vc4->render_job_list);
 	INIT_LIST_HEAD(&vc4->job_done_list);
 	INIT_LIST_HEAD(&vc4->seqno_cb_list);
 	spin_lock_init(&vc4->job_lock);
