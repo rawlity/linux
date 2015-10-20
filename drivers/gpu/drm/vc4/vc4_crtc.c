@@ -679,7 +679,7 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	struct drm_crtc *crtc;
 	struct drm_plane *primary_plane, *cursor_plane;
 	const struct of_device_id *match;
-	int ret;
+	int ret, i;
 
 	vc4_crtc = devm_kzalloc(dev, sizeof(*vc4_crtc), GFP_KERNEL);
 	if (!vc4_crtc)
@@ -722,6 +722,22 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	cursor_plane->crtc = crtc;
 	vc4->crtc[drm_crtc_index(crtc)] = vc4_crtc;
 	vc4_crtc->channel = vc4_crtc->data->hvs_channel;
+
+	/* Set up some arbitrary number of planes.  We're not limited
+	 * by a set number of physical registers, just the space in
+	 * the HVS (16k) and how small an plane can be (28 bytes).
+	 * However, each plane we set up takes up some memory, and
+	 * increases the cost of looping over planes, which atomic
+	 * modesetting does quite a bit.  As a result, we pick a
+	 * modest number of planes to expose, that should hopefully
+	 * still cover any sane usecase.
+	 */
+	for (i = 0; i < 8; i++) {
+		struct drm_plane *plane =
+			vc4_plane_init(drm, DRM_PLANE_TYPE_OVERLAY);
+
+		plane->possible_crtcs = 1 << drm_crtc_index(crtc);
+	}
 
 	CRTC_WRITE(PV_INTEN, 0);
 	CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
