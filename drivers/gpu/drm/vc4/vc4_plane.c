@@ -164,6 +164,77 @@ static void vc4_dlist_write(struct vc4_plane_state *vc4_state, u32 val)
 	vc4_state->dlist[vc4_state->dlist_count++] = val;
 }
 
+enum vc4_scaling_mode {
+	VC4_SCALING_NONE,
+	VC4_SCALING_TPZ,
+	VC4_SCALING_PPF,
+};
+
+static enum vc4_scaling_mode vc4_get_scaling_mode(u32 src, u32 dst)
+{
+	if (dst > src)
+		return VC4_SCALING_PPF;
+	else if (dst < src)
+		return VC4_SCALING_TPZ;
+	else
+		return VC4_SCALING_NONE;
+}
+
+/* Returns the scl0/scl1 field based on whether the dimensions need to
+ * be up/down/non-scaled.
+ *
+ * This is a replication of a table from the spec.
+ */
+static u32 vc4_get_scl_field(enum vc4_scaling_mode x_scaling,
+			     enum vc4_scaling_mode y_scaling)
+{
+	switch (x_scaling << 2 | y_scaling) {
+	case VC4_SCALING_PPF << 2 | VC4_SCALING_PPF:
+		return SCALER_CTL0_SCL_H_PPF_V_PPF;
+	case VC4_SCALING_TPZ << 2 | VC4_SCALING_PPF:
+		return SCALER_CTL0_SCL_H_TPZ_V_PPF;
+	case VC4_SCALING_PPF << 2 | VC4_SCALING_TPZ:
+		return SCALER_CTL0_SCL_H_PPF_V_TPZ;
+	case VC4_SCALING_TPZ << 2 | VC4_SCALING_TPZ:
+		return SCALER_CTL0_SCL_H_TPZ_V_TPZ;
+	case VC4_SCALING_PPF << 2 | VC4_SCALING_NONE:
+		return SCALER_CTL0_SCL_H_PPF_V_NONE;
+	case VC4_SCALING_NONE << 2 | VC4_SCALING_PPF:
+		return SCALER_CTL0_SCL_H_NONE_V_PPF;
+	case VC4_SCALING_NONE << 2 | VC4_SCALING_TPZ:
+		return SCALER_CTL0_SCL_H_NONE_V_TPZ;
+	case VC4_SCALING_TPZ << 2 | VC4_SCALING_NONE:
+		return SCALER_CTL0_SCL_H_TPZ_V_NONE;
+	default:
+	case VC4_SCALING_NONE << 2 | VC4_SCALING_NONE:
+		/* The unity case is independently handled by
+		 * SCALER_CTL0_UNITY.
+		 */
+		return 0;
+	}
+}
+
+static void vc4_write_tpz(struct vc4_plane_state *vc4_state, u32 src, u32 dst)
+{
+	u32 scale, recip;
+
+	scale = (1 << 16) * src;
+	do_div(scale, dst);
+
+	/* The specs note that while the reciprocal would be defined
+	 * as (1<<32)/scale, ~0 is close enough.
+	 */
+	recip = ~0;
+	do_div(recip, scale);
+
+	vc4_dlist_write(vc4_state,
+			VC4_SET_FIELD(scale, SCALER_TPZ0_SCALE) |
+			VC4_SET_FIELD(0, SCALER_TPZ0_IPHASE));
+	vc4_dlist_write(vc4_state,
+			VC4_SET_FIELD(recip, SCALER_TPZ1_RECIP));
+}
+
+
 /* Writes out a full display list for an active plane to the plane's
  * private dlist state.
  */
@@ -180,24 +251,60 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	int crtc_y = state->crtc_y;
 	int crtc_w = state->crtc_w;
 	int crtc_h = state->crtc_h;
+	u32 subpixel_src_mask = (1 << 16) - 1;
+	u32 src_x, src_y, src_w, src_h;
+	u32 scl;
+	enum vc4_scaling_mode x_scaling, y_scaling;
+	bool is_unity;
 
+	/* We don't support subpixel source positioning for scaling. */
+	if ((state->src_x & subpixel_src_mask) ||
+	    (state->src_y & subpixel_src_mask) ||
+	    (state->src_w & subpixel_src_mask) ||
+	    (state->src_h & subpixel_src_mask)) {
+		return -EINVAL;
+	}
+	src_x = state->src_x >> 16;
+	src_y = state->src_y >> 16;
+	src_w = state->src_w >> 16;
+	src_h = state->src_h >> 16;
+
+	x_scaling = vc4_get_scaling_mode(src_w, crtc_w);
+	y_scaling = vc4_get_scaling_mode(src_h, crtc_h);
+	is_unity = (x_scaling == VC4_SCALING_NONE &&
+		    y_scaling == VC4_SCALING_NONE);
+
+	/* Clamp the on-screen start x/y to 0.  The hardware doesn't
+	 * support negative y, and negative x wastes bandwidth.
+	 */
 	if (crtc_x < 0) {
+		if (!is_unity)
+			return -EINVAL;
+
 		offset += drm_format_plane_cpp(fb->pixel_format, 0) * -crtc_x;
-		crtc_w += crtc_x;
+		src_w += crtc_x;
 		crtc_x = 0;
 	}
 
 	if (crtc_y < 0) {
+		if (!is_unity)
+			return -EINVAL;
+
 		offset += fb->pitches[0] * -crtc_y;
-		crtc_h += crtc_y;
+		src_h += crtc_y;
 		crtc_y = 0;
 	}
 
+	scl = vc4_get_scl_field(x_scaling, y_scaling);
+
+	/* Control word */
 	vc4_dlist_write(vc4_state,
 			SCALER_CTL0_VALID |
 			(format->pixel_order << SCALER_CTL0_ORDER_SHIFT) |
 			(format->hvs << SCALER_CTL0_PIXEL_FORMAT_SHIFT) |
-			SCALER_CTL0_UNITY);
+			(is_unity ? SCALER_CTL0_UNITY : 0) |
+			VC4_SET_FIELD(scl, SCALER_CTL0_SCL0) |
+			VC4_SET_FIELD(scl, SCALER_CTL0_SCL1));
 
 	/* Position Word 0: Image Positions and Alpha Value */
 	vc4_dlist_write(vc4_state,
@@ -205,9 +312,12 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 			VC4_SET_FIELD(crtc_x, SCALER_POS0_START_X) |
 			VC4_SET_FIELD(crtc_y, SCALER_POS0_START_Y));
 
-	/* Position Word 1: Scaled Image Dimensions.
-	 * Skipped due to SCALER_CTL0_UNITY scaling.
-	 */
+	/* Position Word 1: Scaled Image Dimensions. */
+	if (!is_unity) {
+		vc4_dlist_write(vc4_state,
+				VC4_SET_FIELD(crtc_w, SCALER_POS1_SCL_WIDTH) |
+				VC4_SET_FIELD(crtc_h, SCALER_POS1_SCL_HEIGHT));
+	}
 
 	/* Position Word 2: Source Image Size, Alpha Mode */
 	vc4_dlist_write(vc4_state,
@@ -215,8 +325,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
 				      SCALER_POS2_ALPHA_MODE_FIXED,
 				      SCALER_POS2_ALPHA_MODE) |
-			VC4_SET_FIELD(crtc_w, SCALER_POS2_WIDTH) |
-			VC4_SET_FIELD(crtc_h, SCALER_POS2_HEIGHT));
+			VC4_SET_FIELD(src_w, SCALER_POS2_WIDTH) |
+			VC4_SET_FIELD(src_h, SCALER_POS2_HEIGHT));
 
 	/* Position Word 3: Context.  Written by the HVS. */
 	vc4_dlist_write(vc4_state, 0xc0c0c0c0);
@@ -232,6 +342,26 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Pitch word 0: Pointer 0 Pitch */
 	vc4_dlist_write(vc4_state,
 			VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH));
+
+	if (!is_unity) {
+		/* LBM Base Address. */
+		if (y_scaling != VC4_SCALING_NONE)
+			vc4_dlist_write(vc4_state, 0);
+
+		if (x_scaling == VC4_SCALING_TPZ) {
+			vc4_write_tpz(vc4_state, src_w, crtc_w);
+		} else if (x_scaling == VC4_SCALING_PPF) {
+			return -EINVAL;
+		}
+
+		if (y_scaling == VC4_SCALING_TPZ) {
+			vc4_write_tpz(vc4_state, src_h, crtc_h);
+			/* Context word (not present in horizontal TPZ) */
+			vc4_dlist_write(vc4_state, 0);
+		} else if (y_scaling == VC4_SCALING_PPF) {
+			return -EINVAL;
+		}
+	}
 
 	vc4_state->dlist[ctl0_offset] |=
 		VC4_SET_FIELD(vc4_state->dlist_count, SCALER_CTL0_SIZE);
