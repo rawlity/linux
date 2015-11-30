@@ -28,9 +28,11 @@
 
 #define DRM_VC4_CREATE_BO                         0x03
 #define DRM_VC4_MMAP_BO                           0x04
+#define DRM_VC4_CREATE_SHADER_BO                  0x05
 
 #define DRM_IOCTL_VC4_CREATE_BO           DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_CREATE_BO, struct drm_vc4_create_bo)
 #define DRM_IOCTL_VC4_MMAP_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_MMAP_BO, struct drm_vc4_mmap_bo)
+#define DRM_IOCTL_VC4_CREATE_SHADER_BO    DRM_IOWR(DRM_COMMAND_BASE + DRM_VC4_CREATE_SHADER_BO, struct drm_vc4_create_shader_bo)
 
 /**
  * struct drm_vc4_create_bo - ioctl argument for creating VC4 BOs.
@@ -63,6 +65,29 @@ struct drm_vc4_mmap_bo {
 	uint32_t flags;
 	/** offset into the drm node to use for subsequent mmap call. */
 	uint64_t offset;
+};
+
+/**
+ * struct drm_vc4_create_shader_bo - ioctl argument for creating VC4
+ * shader BOs.
+ *
+ * Since allowing a shader to be overwritten while it's also being
+ * executed from would allow privlege escalation, shaders must be
+ * created using this ioctl, and they can't be mmapped later.
+ */
+struct drm_vc4_create_shader_bo {
+	/* Size of the data argument. */
+	uint32_t size;
+	/* Flags, currently must be 0. */
+	uint32_t flags;
+
+	/* Pointer to the data. */
+	uint64_t data;
+
+	/** Returned GEM handle for the BO. */
+	uint32_t handle;
+	/* Pad, must be 0. */
+	uint32_t pad;
 };
 
 #endif /* _UAPI_VC4_DRM_H_ */
