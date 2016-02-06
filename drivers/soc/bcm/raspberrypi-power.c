@@ -55,6 +55,7 @@ static int rpi_firmware_set_power(struct rpi_power_domain *rpi_domain, bool on)
 {
 	struct rpi_power_domain_packet packet;
 
+	pr_err("domain %d %d\n", rpi_domain->domain, on);
 	packet.domain = rpi_domain->domain;
 	packet.on = on;
 	return rpi_firmware_property(rpi_domain->fw,
