@@ -284,6 +284,10 @@ vc4_hangcheck_elapsed(unsigned long data)
 		return;
 	}
 
+	DRM_INFO("Hangcheck:\n");
+	DRM_INFO("0x%08x 0x%08x\n", ct0ca, ct1ca);
+	DRM_INFO("0x%08x 0x%08x\n", exec->last_ct0ca, exec->last_ct1ca);
+
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
 	/* We've gone too long with no progress, reset.  This has to
