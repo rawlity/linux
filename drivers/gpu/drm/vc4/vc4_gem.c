@@ -29,6 +29,7 @@
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
+#include "vc4_packet.h"
 #include "vc4_regs.h"
 #include "vc4_trace.h"
 
@@ -528,6 +529,7 @@ fail:
 static int
 vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_vc4_submit_cl *args = exec->args;
 	void *temp = NULL;
 	void *bin;
@@ -620,6 +622,13 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 				  exec);
 	if (ret)
 		goto fail;
+
+	if (((int)vc4->emit_seqno % 100) == 50) {
+		*(uint8_t *)(exec->exec_bo->vaddr + bin_offset) =
+			VC4_PACKET_BRANCH;
+		*(uint32_t *)(exec->exec_bo->vaddr + bin_offset + 1) =
+			exec->ct0ca;
+	}
 
 	ret = vc4_validate_shader_recs(dev, exec);
 
