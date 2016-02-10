@@ -96,3 +96,8 @@
 	pinctrl-0 = <&uart0_gpio14>;
 	status = "okay";
 };
+
+&i2c_dsi {
+	gpios = <&gpio 0 0
+		 &gpio 1 0>;
+};

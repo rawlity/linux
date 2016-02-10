@@ -60,3 +60,8 @@
 	status = "okay";
 	bus-width = <4>;
 };
+
+&i2c_dsi {
+	gpios = <&gpio 44 0
+		 &gpio 45 0>;
+};
