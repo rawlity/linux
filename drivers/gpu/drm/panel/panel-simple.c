@@ -1852,10 +1852,38 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 			.height = 136,
 		},
 	},
-	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
+};
+
+static const struct drm_display_mode raspberrypi_touchscreen_mode = {
+	.clock = 157200,
+	.hdisplay = 800,
+	.hsync_start = 800 + 61,
+	.hsync_end = 800 + 61 + 2,
+	.htotal = 800 + 61 + 2 + 44,
+	.vdisplay = 480,
+	.vsync_start = 480 + 7,
+	.vsync_end = 480 + 7 + 2,
+	.vtotal = 480 + 7 + 2 + 21,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc_dsi raspberrypi_touchscreen = {
+	.desc = {
+		.modes = &raspberrypi_touchscreen_mode,
+		.num_modes = 1,
+		.bpc = 8,
+		.size = {
+			.width = 217, /* XXX */
+			.height = 136, /* XXX */
+		},
+	},
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
+		 MIPI_DSI_CLOCK_NON_CONTINUOUS, /* XXX */
+	.format = MIPI_DSI_FMT_RGB888,
+	.lanes = 1,
 };
 
 static const struct of_device_id dsi_of_match[] = {
@@ -1874,6 +1902,9 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "panasonic,vvx10f004b00",
 		.data = &panasonic_vvx10f004b00
+	}, {
+		.compatible = "raspberrypi,touchscreen",
+		.data = &raspberrypi_touchscreen
 	}, {
 		/* sentinel */
 	}
