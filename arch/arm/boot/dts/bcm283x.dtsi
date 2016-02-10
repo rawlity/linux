@@ -535,7 +535,11 @@
 					     "dsi1_ddr2",
 					     "dsi1_ddr";
 
-			status = "disabled";
+			port {
+				dsi_out_port: endpoint {
+					remote-endpoint = <&panel_dsi_port>;
+				};
+			};
 		};
 
 		i2c1: i2c@7e804000 {
@@ -606,6 +610,30 @@
 
 		vc4: gpu {
 			compatible = "brcm,bcm2835-vc4";
+		};
+
+		i2c_dsi: i2c {
+			/* We have to use i2c-gpio because the
+			 * firmware is also polling another device
+			 * using the only hardware I2C bus that could
+			 * connect to these pins.
+			 */
+			compatible = "i2c-gpio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			gpios = <&gpio 28 0
+				 &gpio 29 0>;
+
+			lcd@45 {
+				compatible = "raspberrypi,7inch-touchscreen-panel";
+				reg = <0x45>;
+
+				port {
+					panel_dsi_port: endpoint {
+						remote-endpoint = <&dsi_out_port>;
+					};
+				};
+			};
 		};
 	};
 
