@@ -85,5 +85,5 @@
 };
 
 &dsi1 {
-	power-domains = <&power RPI_POWER_DOMAIN_DSI1>;
+	/*power-domains = <&power RPI_POWER_DOMAIN_DSI1>;*/
 };
