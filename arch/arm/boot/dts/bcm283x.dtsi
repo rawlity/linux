@@ -131,6 +131,91 @@
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
+			/* Defines some pin muxing groups according to
+			 * BCM2835-ARM-Peripherals.pdf page 102.
+			 *
+			 * While each pin can have its mux selected
+			 * for various functions individually, some
+			 * groups only make sense to switch to a
+			 * particular function together.
+			 */
+			i2c0_sda_gpio0: i2c0_sda_gpio0 {
+				brcm,pins = <0>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			i2c0_scl_gpio1: i2c0_scl_gpio1 {
+				brcm,pins = <1>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			i2c1_sda_gpio2: i2c1_sda_gpio2 {
+				brcm,pins = <2 3>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			i2c1_scl_gpio3: i2c1_scl_gpio3 {
+				brcm,pins = <3>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			gpclk0_gpio4: gpclk0_gpio4 {
+				brcm,pins = <4>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			gpclk1_gpio5: gpclk1_gpio5 {
+				brcm,pins = <5>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			gpclk2_gpio6: gpclk2_gpio6 {
+				brcm,pins = <6>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			spi0_ce1_gpio7: spi0_ce1_gpio7 {
+				brcm,pins = <7>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			spi0_ce0_gpio8: spi0_ce0_gpio8 {
+				brcm,pins = <7>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			spi0_miso_gpio9: spi0_miso_gpio9 {
+				brcm,pins = <9>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			spi0_mosi_gpio10: spi0_mosi_gpio10 {
+				brcm,pins = <10>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			spi0_sclk_gpio11: spi0_sclk_gpio11 {
+				brcm,pins = <11>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			pcm_gpio28: pcm_gpio28 {
+				brcm,pins = <28 29 30 31>;
+				brcm,function = <BCM2835_FSEL_ALT2>;
+			};
+			pwm0_gpio40: pwm0_gpio40 {
+				brcm,pins = <40>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			pwm1_gpio41: pwm0_gpio41 {
+				brcm,pins = <41>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			i2c0_sda_gpio44: i2c0_sda_gpio44 {
+				brcm,pins = <44>;
+				brcm,function = <BCM2835_FSEL_ALT1>;
+			};
+			i2c0_scl_gpio45: i2c0_scl_gpio45 {
+				brcm,pins = <45>;
+				brcm,function = <BCM2835_FSEL_ALT1>;
+			};
+			pwm1_gpio45: pwm1_gpio45 {
+				brcm,pins = <45>;
+				brcm,function = <BCM2835_FSEL_ALT0>;
+			};
+			emmc_gpio48: emmc_gpio48 {
+				brcm,pins = <48 49 50 51 52 53>;
+				brcm,function = <BCM2835_FSEL_ALT3>;
+			};
 		};
 
 		uart0: serial@7e201000 {

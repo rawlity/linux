@@ -1,0 +1,57 @@
+/dts-v1/;
+#include "bcm2837.dtsi"
+#include "../../../../arm/boot/dts/bcm2835-rpi.dtsi"
+#include "../../../../arm/boot/dts/bcm283x-rpi-smsc9514.dtsi"
+
+/ {
+	compatible = "raspberrypi,3-model-b", "brcm,bcm2837";
+	model = "Raspberry Pi 3 Model B";
+
+	memory {
+		reg = <0 0x40000000>;
+	};
+
+	leds {
+		act {
+			gpios = <&gpio 47 0>;
+		};
+
+		pwr {
+			label = "PWR";
+			gpios = <&gpio 35 0>;
+			default-state = "keep";
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+&gpio {
+	pinctrl-0 = <&gpioout>,
+		    <&i2c0_sda_gpio0>,
+		    <&i2c0_scl_gpio1>,
+		    <&i2c1_sda_gpio2>,
+		    <&i2c1_scl_gpio3>;
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&i2s {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcm_gpio28>;
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_gpio40>, <&pwm1_gpio41>;
+};
+
+&spi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_ce1_gpio7>,
+		    <&spi0_ce0_gpio8>,
+		    <&spi0_miso_gpio9>,
+		    <&spi0_mosi_gpio10>,
+		    <&spi0_sclk_gpio11>;
+};
