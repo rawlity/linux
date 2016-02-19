@@ -29,6 +29,6 @@
 		     &pcm_gpio18
 		     &pwm0_gpio40
 		     &pwm1_gpio45
-		     &gpioout
-		     &alt3>;
+		     &emmc_gpio48
+		     &gpioout>;
 };
