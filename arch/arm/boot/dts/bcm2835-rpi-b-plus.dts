@@ -20,15 +20,7 @@
 	};
 };
 
-&gpio {
-	pinctrl-0 = <&i2c0_gpio0
-		     &i2c1_gpio2
-		     &gpclk0_gpio4
-		     &gpclk1_gpio5
-		     &spi0_gpio7
-		     &pcm_gpio18
-		     &pwm0_gpio40
-		     &pwm1_gpio45
-		     &emmc_gpio48
-		     &gpioout>;
+&i2s {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcm_gpio18>;
 };
