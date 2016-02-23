@@ -3,8 +3,8 @@
 #include "bcm2835-rpi.dtsi"
 
 / {
-	compatible = "raspberrypi,model-b-rev2", "brcm,bcm2835";
-	model = "Raspberry Pi Model B rev2";
+	compatible = "raspberrypi,model-a", "brcm,bcm2835";
+	model = "Raspberry Pi Model A";
 
 	leds {
 		act {

@@ -12,7 +12,3 @@
 		};
 	};
 };
-
-&gpio {
-	pinctrl-0 = <&gpioout &alt0 &alt3>;
-};
