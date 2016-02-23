@@ -778,6 +778,15 @@ config MMC_TOSHIBA_PCI
 	depends on PCI
 	help
 
+config MMC_BCM2835_SDHOST
+	tristate "platform support for the BCM2835 SDHOST MMC Controller"
+	depends on ARCH_BCM2835 || COMPILE_TEST
+	help
+	  This selects the BCM2835 SDHOST MMC controller. If you have a BCM2835
+	  platform with SD or MMC devices, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_MTK
 	tristate "MediaTek SD/MMC Card Interface support"
 	depends on HAS_DMA
