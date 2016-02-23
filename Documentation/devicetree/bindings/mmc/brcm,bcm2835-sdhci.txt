@@ -15,4 +15,7 @@ sdhci: sdhci {
 	interrupts = <2 30>;
 	clocks = <&clk_mmc>;
 	bus-width = <4>;
+	dmas = <&dma 13>,
+	       <&dma 13>;
+	dma-names = "tx", "rx";
 };
