@@ -23,3 +23,9 @@
 		};
 	};
 };
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_gpio32>;
+	status = "okay";
+};
