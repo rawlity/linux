@@ -22,27 +22,26 @@
 			linux,default-trigger = "default-on";
 		};
 	};
+
+	i2c_gpio {
+		compatible = "i2c-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		gpios = <&gpio 44 0
+			 &gpio 45 0>;
+
+		gpio_expander: gpio@43 {
+			gpio-controller;
+			#gpio-cells = <2>;
+			reg = <0x43>;
+			compatible = "fcs,fxl6408";
+		};
+	};
 };
 
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_gpio32>;
 	status = "okay";
-};
-
-/* Connect the GPIO expander to I2C1 */
-&i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_gpio44>;
-
-	gpio_expander: gpio@43 {
-		gpio-controller;
-		#gpio-cells = <2>;
-		reg = <0x43>;
-		compatible = "fcs,fxl6408";
-	};
-};
-
-bt {
-	
 };
