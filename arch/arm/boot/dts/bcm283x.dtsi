@@ -272,12 +272,12 @@
 				brcm,pins = <19>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
-			uart1_gpio30: uart1_gpio30 {
-				brcm,pins = <30 31>;
+			uart1_gpio32: uart1_gpio32 {
+				brcm,pins = <32 33>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
-			uart1_ctsrts_gpio32: uart1_ctsrts_gpio32 {
-				brcm,pins = <32 33>;
+			uart1_ctsrts_gpio30: uart1_ctsrts_gpio30 {
+				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
 			uart1_gpio40: uart1_gpio40 {
