@@ -45,3 +45,7 @@
 	pinctrl-0 = <&uart1_gpio32>;
 	status = "okay";
 };
+
+&hdmi {
+	hpd-gpios = <&gpio_expander 4 GPIO_ACTIVE_LOW>;
+};
