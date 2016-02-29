@@ -49,3 +49,18 @@
 &hdmi {
 	hpd-gpios = <&gpio_expander 4 GPIO_ACTIVE_LOW>;
 };
+
+/* SDHOST is used to drive the SD card */
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	status = "okay";
+};
+
+/* SDHCI is used to control the SDIO for wireless */
+&sdhci {
+	pinctrl-names = "default";
+	pinctrl-0 = <&emmc_gpio34>;
+	status = "okay";
+	non-removable;
+};
