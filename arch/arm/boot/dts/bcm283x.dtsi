@@ -446,7 +446,12 @@
 			clock-names = "core", "pixel";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
+
+			port {
+				dpi_out: endpoint@0 {
+					remote-endpoint = <&panel_in>;
+				};
+			};
 		};
 
 		dsi0: dsi@7e209000 {
@@ -652,5 +657,15 @@
 	usbphy: phy {
 		compatible = "usb-nop-xceiv";
 		#phy-cells = <0>;
+	};
+
+	panel: panel {
+		compatible = "ontat,yx700wv03", "simple-panel";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
 	};
 };

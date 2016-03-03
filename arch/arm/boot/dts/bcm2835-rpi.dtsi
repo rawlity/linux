@@ -38,24 +38,39 @@
 		brcm,function = <BCM2835_FSEL_GPIO_OUT>;
 	};
 
+	dpi_pins: dpi_pins {
+		brcm,pins = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21>;
+		brcm,function = <BCM2835_FSEL_ALT2>;
+	};
+
 	alt0: alt0 {
 		brcm,pins = <4 5 7 8 9 10 11>;
 		brcm,function = <BCM2835_FSEL_ALT0>;
 	};
 };
 
+&dpi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dpi_pins>;
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_gpio0>;
-	status = "okay";
+	status = "disabled";
 	clock-frequency = <100000>;
 };
 
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_gpio2>;
-	status = "okay";
+	status = "disabled";
 	clock-frequency = <100000>;
+};
+
+&uart0 {
+	status = "disabled";
 };
 
 &i2c2 {
