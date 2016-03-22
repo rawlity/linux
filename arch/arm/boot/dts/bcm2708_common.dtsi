@@ -1,3 +1,5 @@
+#include "dt-bindings/gpio/gpio.h"
+#include "dt-bindings/clock/bcm2835.h"
 #include <dt-bindings/clock/bcm2835-aux.h>
 #include "skeleton.dtsi"
 
@@ -32,6 +34,13 @@
 		vchiq = &vchiq;
 		thermal = &thermal;
 		clocks = &clocks;
+		pv0 = &pv0;
+		pv1 = &pv1;
+		pv2 = &pv2;
+		hvs = &hvs;
+		hdmi = &hdmi;
+		v3d = &v3d;
+		vc4 = &vc4;
 	};
 
 	/* Onboard audio */
@@ -181,6 +190,18 @@
 			status = "disabled";
 		};
 
+		pv0: pixelvalve@7e206000 {
+			compatible = "brcm,bcm2835-pixelvalve0";
+			reg = <0x7e206000 0x100>;
+			status = "disabled";
+		};
+
+		pv1: pixelvalve@7e207000 {
+			compatible = "brcm,bcm2835-pixelvalve1";
+			reg = <0x7e207000 0x100>;
+			status = "disabled";
+		};
+
 		pwm: pwm@7e20c000 {
 			compatible = "brcm,bcm2835-pwm";
 			reg = <0x7e20c000 0x28>;
@@ -261,6 +282,12 @@
 			status = "disabled";
 		};
 
+		pv2: pixelvalve@7e807000 {
+			compatible = "brcm,bcm2835-pixelvalve2";
+			reg = <0x7e807000 0x100>;
+			status = "disabled";
+		};
+
 		smi: smi@7e600000 {
 			compatible = "brcm,bcm2835-smi";
 			reg = <0x7e600000 0x44>, <0x7e1010b0 0x8>;
@@ -278,6 +305,35 @@
 			      <0x7e006000 0x1000>;
 			interrupts = <2 0>,
 				     <1 9>;
+		};
+
+		hvs: hvs@7e400000 {
+			compatible = "brcm,bcm2835-hvs";
+			reg = <0x7e400000 0x6000>;
+			status = "disabled";
+		};
+
+		hdmi: hdmi@7e902000 {
+			compatible = "brcm,bcm2835-hdmi";
+			reg = <0x7e902000 0x600>,
+			      <0x7e808000 0x100>;
+			ddc = <&i2c2>;
+			hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
+			clocks = <&cprman BCM2835_PLLH_PIX>,
+				 <&cprman BCM2835_CLOCK_HSM>;
+			clock-names = "pixel", "hdmi";
+			status = "disabled";
+		};
+
+		v3d: v3d@7ec00000 {
+			compatible = "brcm,vc4-v3d";
+			reg = <0x7ec00000 0x1000>;
+			status = "disabled";
+		};
+
+		vc4: gpu@7e4c0000 {
+			compatible = "brcm,bcm2835-vc4";
+			status = "disabled";
 		};
 
 		firmware: firmware {
