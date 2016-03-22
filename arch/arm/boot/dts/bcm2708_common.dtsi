@@ -307,6 +307,12 @@
 			compatible = "brcm,bcm2835-thermal";
 			firmware = <&firmware>;
 		};
+
+		power: power {
+			compatible = "raspberrypi,bcm2835-power";
+			firmware = <&firmware>;
+			#power-domain-cells = <1>;
+		};
 	};
 
 	clocks: clocks {
