@@ -791,6 +791,9 @@ static int bcm2835_pll_divider_set_rate(struct clk_hw *hw,
 	if (div == max_div)
 		div = 0;
 
+	dev_info(cprman->dev, "Set %s to %ld from %ld (div %d)\n",
+		 clk_hw_get_name(hw), rate, parent_rate, div);
+
 	cprman_write(cprman, data->a2w_reg, div);
 	cm = cprman_read(cprman, data->cm_reg);
 	cprman_write(cprman, data->cm_reg, cm | data->load_mask);
@@ -1818,7 +1821,14 @@ static const struct bcm2835_clk_desc clk_desc_array[] = {
 		.div_reg = CM_DSI1EDIV,
 		.int_bits = 4,
 		.frac_bits = 8),
-
+#if 0
+	[BCM2835_CLOCK_DSI1P]	= REGISTER_DSI_CLK(
+		.name = "dsi1p",
+		.ctl_reg = CM_DSI1PCTL,
+		.div_reg = CM_DSI1PDIV,
+		.int_bits = 0,
+		.frac_bits = 0),
+#endif
 	/* the gates */
 
 	/*
@@ -1884,6 +1894,16 @@ static int bcm2835_clk_probe(struct platform_device *pdev)
 
 	cprman->onecell.num = asize;
 	hws = cprman->onecell.hws;
+
+	dev_info(cprman->dev, "DSI1PCTL: 0x%08x\n",
+		 cprman_read(cprman, CM_DSI1PCTL));
+
+	cprman_write(cprman, CM_DSI1PCTL,
+		     ((8 << CM_SRC_SHIFT) & CM_SRC_MASK) |
+		     CM_ENABLE |
+		     CM_GATE);
+	dev_info(cprman->dev, "DSI1PCTL: 0x%08x\n",
+		 cprman_read(cprman, CM_DSI1PCTL));
 
 	for (i = 0; i < asize; i++) {
 		desc = &clk_desc_array[i];
