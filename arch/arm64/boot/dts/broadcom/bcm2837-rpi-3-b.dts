@@ -55,3 +55,7 @@
 		    <&spi0_mosi_gpio10>,
 		    <&spi0_sclk_gpio11>;
 };
+
+&hdmi {
+	hpd-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
+};
