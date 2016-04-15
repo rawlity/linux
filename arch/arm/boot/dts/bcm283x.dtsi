@@ -93,9 +93,10 @@
 			reg = <0x7e101000 0x2000>;
 
 			/* CPRMAN derives everything from the platform's
-			 * oscillator.
+			 * oscillator, except for a few clocks that may
+			 * derive from something else derived from CPRMAN.
 			 */
-			clocks = <&clk_osc>;
+			clocks = <&clk_osc>, <&dsi1 0>, <&dsi1 1>, <&dsi1 2>;
 		};
 
 		rng@7e104000 {
@@ -248,12 +249,15 @@
 		dsi1: dsi@7e700000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#clock-cells = <1>;
 
 			compatible = "brcm,bcm2835-dsi1";
 			reg = <0x7e700000 0x8c>;
 			clocks = <&clocks BCM2835_CLOCK_DSI1E>,
 				 <&clocks BCM2835_PLLD_DSI1>;
 			clock-names = "escape", "phy";
+
+			clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
 
 			brcm,panel = <&pitouchscreen>;
 
