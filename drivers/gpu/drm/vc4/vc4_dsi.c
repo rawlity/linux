@@ -639,6 +639,23 @@ static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 				     struct drm_display_mode *unadjusted_mode,
 				     struct drm_display_mode *mode)
 {
+}
+
+static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
+{
+	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
+	struct vc4_dsi *dsi = vc4_encoder->dsi;
+
+	drm_panel_disable(dsi->panel);
+
+	drm_panel_unprepare(dsi->panel);
+
+	clk_disable_unprepare(dsi->pll_phy_clock);
+	clk_disable_unprepare(dsi->escape_clock);
+}
+
+static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
+{
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	uint32_t format = 0, divider = 0;
@@ -649,6 +666,12 @@ static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	uint32_t lpx = dsi_esc_timing(60);
 	uint32_t phyc;
 	int ret;
+
+	ret = drm_panel_prepare(dsi->panel);
+	if (ret) {
+		DRM_ERROR("Panel failed to prepare\n");
+		return;
+	}
 
 	if (debug_dump_regs) {
 		DRM_INFO("DSI regs before:\n");
@@ -661,6 +684,18 @@ static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 		if (ret)
 			dev_err(&dsi->pdev->dev, "Failed to set phy clock: %d\n", ret);
 		dev_info(&dsi->pdev->dev, "Tried to set clock to: %d\n", 2000000000 / 3);
+	}
+
+	ret = clk_prepare_enable(dsi->escape_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on DSI escape clock: %d\n", ret);
+		return;
+	}
+
+	ret = clk_prepare_enable(dsi->pll_phy_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on DSI PLL: %d\n", ret);
+		return;
 	}
 
 	hs_clock = clk_get_rate(dsi->pll_phy_clock);
@@ -850,7 +885,7 @@ static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 			       DSI_DISP1_ENABLE);
 	}
 
-	if (!(mode->flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
+	if (!(dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		phyc |= DSI_PHYC_HS_CLK_CONTINUOUS;
 
 	DSI_PORT_WRITE(PHYC, phyc);
@@ -865,29 +900,6 @@ static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	if (debug_dump_regs) {
 		DRM_INFO("DSI regs after:\n");
 		vc4_dsi_dump_regs(dsi);
-	}
-}
-
-static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
-{
-	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
-	struct vc4_dsi *dsi = vc4_encoder->dsi;
-
-	drm_panel_disable(dsi->panel);
-
-	drm_panel_unprepare(dsi->panel);
-}
-
-static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
-{
-	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
-	struct vc4_dsi *dsi = vc4_encoder->dsi;
-	int ret;
-
-	ret = drm_panel_prepare(dsi->panel);
-	if (ret) {
-		DRM_ERROR("Panel failed to prepare\n");
-		return;
 	}
 
 	ret = drm_panel_enable(dsi->panel);
@@ -1176,21 +1188,9 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(dsi->escape_clock);
-	if (ret) {
-		DRM_ERROR("Failed to turn on DSI escape clock: %d\n", ret);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(dsi->pll_phy_clock);
-	if (ret) {
-		DRM_ERROR("Failed to turn on phy clock: %d\n", ret);
-		goto err_disable_esc;
-	}
-
 	ret = vc4_dsi_init_phy_byte_clock(dsi);
 	if (ret)
-		goto err_disable_pll;
+		return ret;
 
 	if (dsi->port == 1)
 		vc4->dsi1 = dsi;
@@ -1216,10 +1216,6 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 
 err_destroy_encoder:
 	vc4_dsi_encoder_destroy(dsi->encoder);
-err_disable_pll:
-	clk_disable_unprepare(dsi->pll_phy_clock);
-err_disable_esc:
-	clk_disable_unprepare(dsi->escape_clock);
 
 	return ret;
 }
