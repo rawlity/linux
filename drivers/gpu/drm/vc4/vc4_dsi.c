@@ -24,6 +24,7 @@
 #include "drm_mipi_dsi.h"
 #include "drm_panel.h"
 #include "linux/clk.h"
+#include "linux/clk-provider.h"
 #include "linux/component.h"
 #include "linux/dmaengine.h"
 #include "linux/i2c.h"
@@ -360,9 +361,23 @@ struct vc4_dsi {
 	enum mipi_dsi_pixel_format format;
 	u32 mode_flags;
 
-	struct clk *pixel_clock;
+	/* Input clock to the PHY, for the DSI escape clock. */
 	struct clk *escape_clock;
-	struct clk *phy_clock;
+
+	/* Input clock to the PHY, used to generate the DSI bit
+	 * clock.
+	 */
+	struct clk *pll_phy_clock;
+
+	/* Byte clock generated within the DSI PHY. */
+	struct clk_hw phy_byte_clock;
+
+	struct clk_onecell_data clk_onecell;
+
+	/* Pixel clock output to the pixelvalve, generated from the
+	 * byte clock.
+	 */
+	struct clk *pixel_clock;
 };
 
 static inline void
@@ -642,13 +657,13 @@ static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 
 	/* XXX */
 	if (1) {
-		ret = clk_set_rate(dsi->phy_clock, 2020000000 / 3);
+		ret = clk_set_rate(dsi->pll_phy_clock, 2020000000 / 3);
 		if (ret)
 			dev_err(&dsi->pdev->dev, "Failed to set phy clock: %d\n", ret);
 		dev_info(&dsi->pdev->dev, "Tried to set clock to: %d\n", 2000000000 / 3);
 	}
 
-	hs_clock = clk_get_rate(dsi->phy_clock);
+	hs_clock = clk_get_rate(dsi->pll_phy_clock);
 
 	/* Reset the DSI and all its fifos. */
 	if (dsi->port == 0) {
@@ -994,6 +1009,76 @@ static const struct of_device_id vc4_dsi_dt_match[] = {
 	{}
 };
 
+static long vc4_dsi_byte_clock_round_rate(struct clk_hw *hw, unsigned long rate,
+					  unsigned long *parent_rate)
+{
+	return *parent_rate / 8;
+}
+
+static unsigned long vc4_dsi_byte_clock_get_rate(struct clk_hw *hw,
+					  unsigned long parent_rate)
+{
+	return parent_rate / 8;
+}
+
+static int vc4_dsi_byte_clock_set_rate(struct clk_hw *hw,
+				       unsigned long rate,
+				       unsigned long parent_rate)
+{
+	return 0;
+}
+
+/* The byte clock has *no* ops filled.  It's always running when the
+ * PHY is.
+ */
+static const struct clk_ops vc4_dsi_byte_clock_ops = {
+	.recalc_rate = vc4_dsi_byte_clock_get_rate,
+	.set_rate = vc4_dsi_byte_clock_set_rate,
+	.round_rate = vc4_dsi_byte_clock_round_rate,
+};
+
+static int
+vc4_dsi_init_phy_byte_clock(struct vc4_dsi *dsi)
+{
+	struct device *dev = &dsi->pdev->dev;
+	const char *parent_name = __clk_get_name(dsi->pll_phy_clock);
+	struct clk_init_data init;
+	struct clk *clk;
+
+	memset(&init, 0, sizeof(init));
+	init.parent_names = &parent_name;
+	init.num_parents = 1;
+	if (dsi->port == 1)
+		init.name = "dsi1_byte";
+	else
+		init.name = "dsi0_byte";
+	init.ops = &vc4_dsi_byte_clock_ops;
+	init.flags = 0;
+
+	dsi->phy_byte_clock.init = &init;
+	clk = devm_clk_register(dev, &dsi->phy_byte_clock);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	/* Use the onecell provider because we may need to expose the
+	 * DDR and DDR2 clocks at some point, which we'd want to put
+	 * in slots 1 and 2.
+	 */
+	dsi->clk_onecell.clk_num = 1;
+	dsi->clk_onecell.clks = devm_kcalloc(dev,
+					     dsi->clk_onecell.clk_num,
+					     sizeof(*dsi->clk_onecell.clks),
+					     GFP_KERNEL);
+	if (!dsi->clk_onecell.clks)
+		return -ENOMEM;
+
+	dsi->clk_onecell.clks[0] = clk;
+
+	return of_clk_add_provider(dev->of_node,
+				   of_clk_src_onecell_get,
+				   &dsi->clk_onecell);
+}
+
 static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1076,9 +1161,9 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	dsi->phy_clock = devm_clk_get(dev, "phy");
-	if (IS_ERR(dsi->phy_clock)) {
-		ret = PTR_ERR(dsi->phy_clock);
+	dsi->pll_phy_clock = devm_clk_get(dev, "phy");
+	if (IS_ERR(dsi->pll_phy_clock)) {
+		ret = PTR_ERR(dsi->pll_phy_clock);
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get phy clock: %d\n", ret);
 		return ret;
@@ -1097,11 +1182,15 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(dsi->phy_clock);
+	ret = clk_prepare_enable(dsi->pll_phy_clock);
 	if (ret) {
 		DRM_ERROR("Failed to turn on phy clock: %d\n", ret);
 		goto err_disable_esc;
 	}
+
+	ret = vc4_dsi_init_phy_byte_clock(dsi);
+	if (ret)
+		goto err_disable_pll;
 
 	if (dsi->port == 1)
 		vc4->dsi1 = dsi;
@@ -1127,6 +1216,8 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 
 err_destroy_encoder:
 	vc4_dsi_encoder_destroy(dsi->encoder);
+err_disable_pll:
+	clk_disable_unprepare(dsi->pll_phy_clock);
 err_disable_esc:
 	clk_disable_unprepare(dsi->escape_clock);
 
@@ -1145,7 +1236,7 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 
-	clk_disable_unprepare(dsi->phy_clock);
+	clk_disable_unprepare(dsi->pll_phy_clock);
 	clk_disable_unprepare(dsi->escape_clock);
 
 	if (dsi->port == 1)
