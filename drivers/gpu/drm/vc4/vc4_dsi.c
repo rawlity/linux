@@ -635,12 +635,6 @@ dsi_esc_timing(u32 ns)
 	return DIV_ROUND_UP(ns, ESC_TIME_NS);
 }
 
-static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
-				     struct drm_display_mode *unadjusted_mode,
-				     struct drm_display_mode *mode)
-{
-}
-
 static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
@@ -652,12 +646,15 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 
 	clk_disable_unprepare(dsi->pll_phy_clock);
 	clk_disable_unprepare(dsi->escape_clock);
+	clk_disable_unprepare(dsi->pixel_clock);
 }
 
 static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 {
+	struct drm_display_mode *mode = &encoder->crtc->mode;
 	struct vc4_dsi_encoder *vc4_encoder = to_vc4_dsi_encoder(encoder);
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
+	struct device *dev = &dsi->pdev->dev;
 	uint32_t format = 0, divider = 0;
 	bool debug_dump_regs = true;
 	unsigned long hs_clock;
@@ -695,6 +692,17 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	ret = clk_prepare_enable(dsi->pll_phy_clock);
 	if (ret) {
 		DRM_ERROR("Failed to turn on DSI PLL: %d\n", ret);
+		return;
+	}
+
+	ret = clk_set_rate(dsi->pixel_clock, mode->clock * 1000);
+	if (ret)
+		dev_err(dev, "Failed to set pixel clock: %d\n", ret);
+	dev_info(&dsi->pdev->dev, "Tried to set pixel clock to: %d\n", mode->clock * 1000);
+
+	ret = clk_prepare_enable(dsi->pixel_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on DSI pixel clock: %d\n", ret);
 		return;
 	}
 
@@ -1010,7 +1018,6 @@ static const struct mipi_dsi_host_ops vc4_dsi_host_ops = {
 };
 
 static const struct drm_encoder_helper_funcs vc4_dsi_encoder_helper_funcs = {
-	.mode_set = vc4_dsi_encoder_mode_set,
 	.disable = vc4_dsi_encoder_disable,
 	.enable = vc4_dsi_encoder_enable,
 };
@@ -1178,6 +1185,14 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		ret = PTR_ERR(dsi->pll_phy_clock);
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get phy clock: %d\n", ret);
+		return ret;
+	}
+
+	dsi->pixel_clock = devm_clk_get(dev, "pixel");
+	if (IS_ERR(dsi->pixel_clock)) {
+		ret = PTR_ERR(dsi->pixel_clock);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get pixel clock: %d\n", ret);
 		return ret;
 	}
 
