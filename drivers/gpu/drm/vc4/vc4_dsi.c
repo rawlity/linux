@@ -628,18 +628,27 @@ static void vc4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	uint32_t format = 0, divider = 0;
 	bool debug_dump_regs = true;
-	unsigned long hs_clock = clk_get_rate(dsi->phy_clock);
+	unsigned long hs_clock;
 	uint32_t ui_ns;
 	/* Minimum LP state duration in escape clock cycles. */
 	uint32_t lpx = dsi_esc_timing(60);
 	uint32_t phyc;
+	int ret;
 
 	if (debug_dump_regs) {
 		DRM_INFO("DSI regs before:\n");
 		vc4_dsi_dump_regs(dsi);
 	}
 
-	/* XXX: clk_set_rate(vc4->dsi->pixel_clock, mode->clock * 1000); */
+	/* XXX */
+	if (1) {
+		ret = clk_set_rate(dsi->phy_clock, 2020000000 / 3);
+		if (ret)
+			dev_err(&dsi->pdev->dev, "Failed to set phy clock: %d\n", ret);
+		dev_info(&dsi->pdev->dev, "Tried to set clock to: %d\n", 2000000000 / 3);
+	}
+
+	hs_clock = clk_get_rate(dsi->phy_clock);
 
 	/* Reset the DSI and all its fifos. */
 	if (dsi->port == 0) {
