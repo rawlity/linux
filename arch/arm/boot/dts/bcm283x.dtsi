@@ -173,6 +173,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+
+			pitouchscreen: panel@48 {
+				compatible = "raspberrypi,touchscreen";
+				reg = <0x48>;
+			};
 		};
 
 		pixelvalve@7e206000 {
@@ -262,11 +267,6 @@
 			clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
 
 			brcm,panel = <&pitouchscreen>;
-
-			pitouchscreen: panel {
-				compatible = "raspberrypi,touchscreen", "simple-panel";
-				reg = <0>;
-			};
 		};
 /*
 		dsi0: dsi@7e209000 {
