@@ -307,7 +307,7 @@ static inline void bcm2835_pinctrl_fsel_set(
 	u32 val = bcm2835_gpio_rd(pc, FSEL_REG(pin));
 	enum bcm2835_fsel cur = (val >> FSEL_SHIFT(pin)) & BCM2835_FSEL_MASK;
 
-	dev_dbg(pc->dev, "read %08x (%u => %s)\n", val, pin,
+	dev_info(pc->dev, "read %08x (%u => %s)\n", val, pin,
 			bcm2835_functions[cur]);
 
 	if (cur == fsel)
@@ -326,7 +326,7 @@ static inline void bcm2835_pinctrl_fsel_set(
 	val &= ~(BCM2835_FSEL_MASK << FSEL_SHIFT(pin));
 	val |= fsel << FSEL_SHIFT(pin);
 
-	dev_dbg(pc->dev, "write %08x (%u <= %s)\n", val, pin,
+	dev_info(pc->dev, "write %08x (%u <= %s)\n", val, pin,
 			bcm2835_functions[fsel]);
 	bcm2835_gpio_wr(pc, FSEL_REG(pin), val);
 }
