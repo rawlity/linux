@@ -225,15 +225,6 @@ static const struct drm_display_mode rpi_touchscreen_modes[] = {
 	},
 };
 
-#if 0
-static const struct panel_desc_dsi raspberrypi_touchscreen = {
-       .flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-                MIPI_DSI_CLOCK_NON_CONTINUOUS, /* XXX */
-       .format = MIPI_DSI_FMT_RGB888,
-       .lanes = 1,
-};
-#endif
-
 static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
 {
 	return container_of(panel, struct rpi_touchscreen, base);
@@ -241,6 +232,7 @@ static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
 
 static u8 rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg)
 {
+	return 0; /* XXX */
 	return i2c_smbus_read_byte_data(ts->client, reg);
 }
 
@@ -248,6 +240,7 @@ static int rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
 {
 	dev_info(&ts->client->dev, "W 0x%02x -> 0x%02x\n", reg, val);
 
+	return 0; /* XXX */
 	return i2c_smbus_write_byte_data(ts->client, reg, val);
 }
 
