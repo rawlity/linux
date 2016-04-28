@@ -412,17 +412,9 @@ static const struct drm_panel_funcs rpi_touchscreen_funcs = {
 	.get_modes = rpi_touchscreen_get_modes,
 };
 
-static const struct of_device_id tc358762_devices[] = {
-	{.compatible = "raspberrypi,touchscreen",},
-	{}
-};
-MODULE_DEVICE_TABLE(of, rpi_touchscreen_devices);
-
-static int tc358762_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 {
-	struct device *dev = &client->dev;
-	struct device_node *panel_node;
+	struct device *dev = &dsi->dev;
 	struct rpi_touchscreen *ts;
 	int ret;
 
@@ -430,7 +422,15 @@ static int tc358762_probe(struct i2c_client *client,
 	if (!ts)
 		return -ENOMEM;
 
-	ts->client = client;
+	dev_set_drvdata(dev, ts);
+
+	dsi->mode_flags = (MIPI_DSI_MODE_VIDEO |
+			   MIPI_DSI_MODE_VIDEO_SYNC_PULSE);
+	dsi->format = MIPI_DSI_FMT_RGB888;
+	dsi->lanes = 1;
+
+	// XXX
+	//ts->client = client;
 
 	ts->backlight =
 		devm_backlight_device_register(dev,
@@ -448,30 +448,53 @@ static int tc358762_probe(struct i2c_client *client,
 	drm_panel_init(&ts->base);
 	ts->base.dev = dev;
 	ts->base.funcs = &rpi_touchscreen_funcs;
+
 	ret = drm_panel_add(&ts->base);
 	if (ret < 0)
 		return ret;
 
-	i2c_set_clientdata(client, ts);
-
-	return 0;
+	return mipi_dsi_attach(dsi);
 }
 
-static int rpi_touchscreen_remove(struct i2c_client *client)
+static int rpi_touchscreen_dsi_remove(struct mipi_dsi_device *dsi)
 {
-	struct rpi_touchscreen *ts = i2c_get_clientdata(client);
+	struct device *dev = &dsi->dev;
+	struct rpi_touchscreen *ts = dev_get_drvdata(dev);
+	int ret;
 
-	drm_panel_detach(&panel->base);
-	drm_panel_remove(&panel->base);
+	ret = mipi_dsi_detach(dsi);
+	if (ret < 0) {
+		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
+		return ret;
+	}
+
+	drm_panel_detach(&ts->base);
+	drm_panel_remove(&ts->base);
 
 	return 0;
 }
 
-static const struct i2c_device_id tc358762_i2c_table[] = {
-	{"touchscreen"},
-	{},
+static void rpi_touchscreen_dsi_shutdown(struct mipi_dsi_device *dsi)
+{
+	/* XXX: poweroff */
+}
+
+static const struct of_device_id rpi_touchscreen_of_match[] = {
+	{ .compatible = "raspberrypi,touchscreen" },
+	{ } /* sentinel */
 };
-MODULE_DEVICE_TABLE(i2c, tc358762_i2c_table);
+MODULE_DEVICE_TABLE(of, rpi_touchscreen_of_match);
+
+static struct mipi_dsi_driver rpi_touchscreen_driver = {
+	.driver = {
+		.name = "raspberrypi-touchscreen",
+		.of_match_table = rpi_touchscreen_of_match,
+	},
+	.probe = rpi_touchscreen_dsi_probe,
+	.remove = rpi_touchscreen_dsi_remove,
+	.shutdown = rpi_touchscreen_dsi_shutdown,
+};
+module_mipi_dsi_driver(rpi_touchscreen_driver);
 
 MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
 MODULE_DESCRIPTION("Raspberry Pi 7-inch touchscreen driver");
