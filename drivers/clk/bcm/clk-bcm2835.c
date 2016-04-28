@@ -555,6 +555,8 @@ static void bcm2835_pll_off(struct clk_hw *hw)
 	struct bcm2835_cprman *cprman = pll->cprman;
 	const struct bcm2835_pll_data *data = pll->data;
 
+	pr_err("%s off\n", clk_hw_get_name(hw));
+
 	spin_lock(&cprman->regs_lock);
 	cprman_write(cprman, data->cm_ctrl_reg,
 		     cprman_read(cprman, data->cm_ctrl_reg) |
@@ -622,6 +624,8 @@ static int bcm2835_pll_set_rate(struct clk_hw *hw,
 	u32 ndiv, fdiv, a2w_ctl;
 	u32 ana[4];
 	int i;
+
+	pr_err("%s set to %lu\n", clk_hw_get_name(hw), rate);
 
 	if (rate < data->min_rate || rate > data->max_rate) {
 		dev_err(cprman->dev, "%s: rate out of spec: %lu vs (%lu, %lu)\n",
@@ -765,6 +769,8 @@ static void bcm2835_pll_divider_off(struct clk_hw *hw)
 	struct bcm2835_cprman *cprman = divider->cprman;
 	const struct bcm2835_pll_divider_data *data = divider->data;
 
+	pr_err("%s off\n", clk_hw_get_name(hw));
+
 	spin_lock(&cprman->regs_lock);
 	cprman_write(cprman, data->cm_reg,
 		     (cprman_read(cprman, data->cm_reg) &
@@ -799,6 +805,8 @@ static int bcm2835_pll_divider_set_rate(struct clk_hw *hw,
 	struct bcm2835_cprman *cprman = divider->cprman;
 	const struct bcm2835_pll_divider_data *data = divider->data;
 	u32 cm, div, max_div = 1 << A2W_PLL_DIV_BITS;
+
+	pr_err("%s set to %lu\n", clk_hw_get_name(hw), rate);
 
 	div = DIV_ROUND_UP_ULL(parent_rate, rate);
 
@@ -980,6 +988,8 @@ static void bcm2835_clock_off(struct clk_hw *hw)
 	struct bcm2835_cprman *cprman = clock->cprman;
 	const struct bcm2835_clock_data *data = clock->data;
 
+	pr_err("%s off\n", clk_hw_get_name(hw));
+
 	spin_lock(&cprman->regs_lock);
 	cprman_write(cprman, data->ctl_reg,
 		     cprman_read(cprman, data->ctl_reg) & ~CM_ENABLE);
@@ -1013,6 +1023,8 @@ static int bcm2835_clock_set_rate(struct clk_hw *hw,
 	const struct bcm2835_clock_data *data = clock->data;
 	u32 div = bcm2835_clock_choose_div(hw, rate, parent_rate, false);
 	u32 ctl;
+
+	pr_err("%s set to %lu\n", clk_hw_get_name(hw), rate);
 
 	spin_lock(&cprman->regs_lock);
 
