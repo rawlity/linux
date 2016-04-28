@@ -274,7 +274,7 @@
 			brcm,panel = <&pitouchscreen>;
 
 			pitouchscreen: panel {
-				compatible = "raspberrypi,touchscreen", "simple-panel";
+				compatible = "raspberrypi,touchscreen";
 				reg = <0>;
 
 				raspberrypi,touchscreen-bridge = <&pitouchscreen_bridge>;
