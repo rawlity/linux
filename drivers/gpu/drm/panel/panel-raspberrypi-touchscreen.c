@@ -305,6 +305,7 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 {
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
 	int i;
+	int lanes = 1;
 
 	if (ts->enabled)
 		return 0;
@@ -348,9 +349,8 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 
 static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 {
-	struct rpi_touchscreen *ts = panel_to_ts(panel);
-	struct drm_connector *connector = panel->base.connector;
-	struct drm_device *drm = panel->base.drm;
+	struct drm_connector *connector = panel->connector;
+	struct drm_device *drm = panel->drm;
 	struct drm_display_mode *mode;
 	unsigned int i, num = 0;
 
@@ -376,8 +376,8 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 	}
 
 	connector->display_info.bpc = 8;
-	connector->display_info.width = 217; /* XXX */
-	connector->display_info.height = 136; /* XXX */
+	connector->display_info.width_mm = 217; /* XXX */
+	connector->display_info.height_mm = 136; /* XXX */
 
 	/* XXX
 	if (panel->desc->bus_format)
@@ -436,7 +436,7 @@ static int tc358762_probe(struct i2c_client *client,
 		devm_backlight_device_register(dev,
 					       "raspberrypi-touchscreen-backlight",
 					       dev, ts,
-					       &ts_backlight_ops,
+					       &rpi_touchscreen_backlight_ops,
 					       NULL);
 	if (IS_ERR(ts->backlight)) {
 		DRM_ERROR("failed to register backlight\n");
@@ -447,7 +447,7 @@ static int tc358762_probe(struct i2c_client *client,
 
 	drm_panel_init(&ts->base);
 	ts->base.dev = dev;
-	ts->base.funcs = &rpi_touschreen_funcs;
+	ts->base.funcs = &rpi_touchscreen_funcs;
 	ret = drm_panel_add(&ts->base);
 	if (ret < 0)
 		return ret;
