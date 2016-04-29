@@ -524,6 +524,8 @@ vc4_dsi_connector_detect(struct drm_connector *connector, bool force)
 		to_vc4_dsi_connector(connector);
 	struct vc4_dsi *dsi = vc4_connector->dsi;
 
+	dev_info(&dsi->pdev->dev, "detecting %d\n", !!dsi->panel);
+
 	if (dsi->panel)
 		return connector_status_connected;
 	else
@@ -541,6 +543,8 @@ static int vc4_dsi_connector_get_modes(struct drm_connector *connector)
 	struct vc4_dsi_connector *vc4_connector =
 		to_vc4_dsi_connector(connector);
 	struct vc4_dsi *dsi = vc4_connector->dsi;
+
+	dev_info(&dsi->pdev->dev, "Getting modes\n");
 
 	if (dsi->panel)
 		return drm_panel_get_modes(dsi->panel);
@@ -663,6 +667,8 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	uint32_t lpx = dsi_esc_timing(60);
 	uint32_t phyc;
 	int ret;
+
+	pr_err("DSI enabling\n");
 
 	ret = drm_panel_prepare(dsi->panel);
 	if (ret) {
@@ -916,6 +922,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		drm_panel_unprepare(dsi->panel);
 		return;
 	}
+	pr_err("DSI enabled\n");
 }
 
 static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
@@ -928,6 +935,7 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	bool is_long = mipi_dsi_packet_format_is_long(msg->type);
 	u32 cmd_fifo_len = 0, pix_fifo_len = 0;
 
+	pr_err("DSI host xfer\n");
 	mipi_dsi_create_packet(&packet, msg);
 
 	pkth |= VC4_SET_FIELD(packet.header[0], DSI_TXPKT1H_BC_DT);
@@ -977,6 +985,8 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 {
 	struct vc4_dsi *dsi = host_to_dsi(host);
 
+	dev_info(&dsi->pdev->dev, "DSI attaching\n");
+
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
 	dsi->format = device->format;
@@ -999,6 +1009,8 @@ static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
 	struct vc4_dsi *dsi = host_to_dsi(host);
+
+	dev_info(&dsi->pdev->dev, "DSI detaching\n");
 
 	if (dsi->panel) {
 		int ret = drm_panel_detach(dsi->panel);
