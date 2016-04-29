@@ -203,6 +203,7 @@ enum REG_ADDR {
 
 struct rpi_touchscreen {
 	struct drm_panel base;
+	struct mipi_dsi_device *dsi;
 	struct i2c_client *client;
 	struct backlight_device *backlight;
 
@@ -246,7 +247,19 @@ static int rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
 
 static int rpi_touchscreen_write(struct rpi_touchscreen *ts, u16 reg, u32 val)
 {
-	/* XXX */
+	u8 msg[] = {
+		reg,
+		reg >> 8,
+		val,
+		val >> 8,
+		val >> 16,
+		val >> 24,
+	};
+
+	dev_info(ts->base.dev, "W 0x%04x -> 0x%08x\n", reg, val);
+
+	mipi_dsi_dcs_write_buffer(ts->dsi, msg, sizeof(msg));
+
 	return 0;
 }
 
@@ -424,6 +437,7 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 
 	dev_set_drvdata(dev, ts);
 
+	ts->dsi = dsi;
 	dsi->mode_flags = (MIPI_DSI_MODE_VIDEO |
 			   MIPI_DSI_MODE_VIDEO_SYNC_PULSE);
 	dsi->format = MIPI_DSI_FMT_RGB888;
