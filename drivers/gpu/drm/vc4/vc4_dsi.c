@@ -25,6 +25,7 @@
 #include "drm_panel.h"
 #include "linux/clk.h"
 #include "linux/clk-provider.h"
+#include "linux/completion.h"
 #include "linux/component.h"
 #include "linux/dmaengine.h"
 #include "linux/i2c.h"
@@ -439,6 +440,9 @@ struct vc4_dsi {
 	 * byte clock.
 	 */
 	struct clk *pixel_clock;
+
+	struct completion xfer_completion;
+	int xfer_result;
 };
 
 static inline void
@@ -992,7 +996,7 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	struct vc4_dsi *dsi = host_to_dsi(host);
 	struct mipi_dsi_packet packet;
 	u32 pkth = 0, pktc = 0;
-	int i;
+	int i, ret;
 	bool is_long = mipi_dsi_packet_format_is_long(msg->type);
 	u32 cmd_fifo_len = 0, pix_fifo_len = 0;
 
@@ -1034,14 +1038,29 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	pktc |= VC4_SET_FIELD(1, DSI_TXPKT1C_CMD_REPEAT);
 	pktc |= DSI_TXPKT1C_CMD_EN;
 
+	/* Enable interrupts for the transfer completion. */
+	dsi->xfer_result = 0;
+	reinit_completion(&dsi->xfer_completion);
 	DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
 				DSI1_INT_TXPKT1_DONE));
 
+	/* Send the packet. */
 	DSI_PORT_WRITE(TXPKT1H, pkth);
 	DSI_PORT_WRITE(TXPKT1C, pktc);
 
-	DRM_INFO("DSI TRANSFER\n");
-	return 0;
+	if (!wait_for_completion_timeout(&dsi->xfer_completion,
+					 msecs_to_jiffies(1000))) {
+		dev_err(&dsi->pdev->dev, "transfer interrupt wait timeout");
+		ret = -ETIMEDOUT;
+	} else {
+		ret = dsi->xfer_result;
+	}
+
+	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
+
+	DRM_INFO("DSI TRANSFER: %d\n", ret);
+
+	return ret;
 }
 
 static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
@@ -1168,6 +1187,15 @@ static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
 	dsi_handle_error(dsi, &ret, stat,
 			 DSI1_INT_PR_TO, "peripheral reset timeout");
 
+	if (stat & DSI1_INT_TXPKT1_DONE) {
+		complete(&dsi->xfer_completion);
+		ret = IRQ_HANDLED;
+	} else if (stat & DSI1_INT_HSTX_TO) {
+		complete(&dsi->xfer_completion);
+		dsi->xfer_result = -ETIMEDOUT;
+		ret = IRQ_HANDLED;
+	}
+
 	return ret;
 }
 
@@ -1287,6 +1315,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 							     0, NULL, NULL));
 	}
 
+	init_completion(&dsi->xfer_completion);
 	/* At startup enable error-reporting interrupts and nothing else. */
 	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
 	/* Clear any existing interrupt state. */
