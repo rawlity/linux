@@ -238,7 +238,7 @@ static u8 rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg)
 
 static int rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
 {
-	dev_info(&ts->client->dev, "W 0x%02x -> 0x%02x\n", reg, val);
+	dev_info(ts->base.dev, "W 0x%02x -> 0x%02x\n", reg, val);
 
 	return 0; /* XXX */
 	return i2c_smbus_write_byte_data(ts->client, reg, val);
@@ -431,7 +431,7 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 
 	// XXX
 	//ts->client = client;
-
+#if 0
 	ts->backlight =
 		devm_backlight_device_register(dev,
 					       "raspberrypi-touchscreen-backlight",
@@ -444,6 +444,7 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 	}
 	ts->backlight->props.max_brightness = RPI_TOUCHSCREEN_MAX_BRIGHTNESS;
 	ts->backlight->props.brightness = RPI_TOUCHSCREEN_MAX_BRIGHTNESS;
+#endif
 
 	pr_err("panel initing\n");
 	drm_panel_init(&ts->base);
