@@ -381,12 +381,6 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 	connector->display_info.width_mm = 217; /* XXX */
 	connector->display_info.height_mm = 136; /* XXX */
 
-	/* XXX
-	if (panel->desc->bus_format)
-		drm_display_info_set_bus_formats(&connector->display_info,
-						 &panel->desc->bus_format, 1);
-	*/
-
 	return num;
 }
 
