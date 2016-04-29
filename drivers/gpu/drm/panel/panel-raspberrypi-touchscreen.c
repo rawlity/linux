@@ -381,6 +381,8 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 	connector->display_info.width_mm = 217; /* XXX */
 	connector->display_info.height_mm = 136; /* XXX */
 
+	pr_err("get %d modes done\n", num);
+
 	return num;
 }
 
