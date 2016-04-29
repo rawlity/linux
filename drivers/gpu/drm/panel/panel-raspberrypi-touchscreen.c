@@ -351,13 +351,13 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 {
 	struct drm_connector *connector = panel->connector;
 	struct drm_device *drm = panel->drm;
-	struct drm_display_mode *mode;
 	unsigned int i, num = 0;
 
 	pr_err("get modes\n");
 
 	for (i = 0; i < ARRAY_SIZE(rpi_touchscreen_modes); i++) {
 		const struct drm_display_mode *m = &rpi_touchscreen_modes[i];
+		struct drm_display_mode *mode;
 
 		mode = drm_mode_duplicate(drm, m);
 		if (!mode) {
