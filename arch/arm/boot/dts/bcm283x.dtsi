@@ -263,12 +263,12 @@
 
 			compatible = "brcm,bcm2835-dsi1";
 			reg = <0x7e700000 0x8c>;
+			interrupts = <2 12>;
 
 			clocks = <&clocks BCM2835_PLLD_DSI1>,
 				 <&clocks BCM2835_CLOCK_DSI1E>,
 				 <&clocks BCM2835_CLOCK_DSI1P>;
 			clock-names = "phy", "escape", "pixel";
-
 			clock-output-names = "dsi1_byte", "dsi1_ddr2", "dsi1_ddr";
 
 			brcm,panel = <&pitouchscreen>;
@@ -284,6 +284,7 @@
 		dsi0: dsi@7e209000 {
 			compatible = "brcm,bcm2835-dsi0";
 			reg = <0x7e209000 0x78>;
+			interrupts = <2 4>;
 		};
 */
 		i2c1: i2c@7e804000 {
