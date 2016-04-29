@@ -253,6 +253,7 @@ static int rpi_touchscreen_write(struct rpi_touchscreen *ts, u16 reg, u32 val)
 static int rpi_touchscreen_disable(struct drm_panel *panel)
 {
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
+	pr_err("disable\n");
 
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 	udelay(1);
@@ -266,6 +267,7 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 	}
 
 	ts->enabled = false;
+	pr_err("disable done\n");
 
 	return 0;
 }
@@ -273,6 +275,7 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 static int rpi_touchscreen_unprepare(struct drm_panel *panel)
 {
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
+	pr_err("unprep\n");
 
 	if (!ts->prepared)
 		return 0;
@@ -286,6 +289,7 @@ static int rpi_touchscreen_prepare(struct drm_panel *panel)
 {
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
 
+	pr_err("prep\n");
 	if (ts->prepared)
 		return 0;
 
@@ -299,6 +303,8 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
 	int i;
 	int lanes = 1;
+
+	pr_err("enable\n");
 
 	if (ts->enabled)
 		return 0;
@@ -336,6 +342,7 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	}
 
 	ts->enabled = true;
+	pr_err("enable done\n");
 
 	return 0;
 }
@@ -346,6 +353,8 @@ static int rpi_touchscreen_get_modes(struct drm_panel *panel)
 	struct drm_device *drm = panel->drm;
 	struct drm_display_mode *mode;
 	unsigned int i, num = 0;
+
+	pr_err("get modes\n");
 
 	for (i = 0; i < ARRAY_SIZE(rpi_touchscreen_modes); i++) {
 		const struct drm_display_mode *m = &rpi_touchscreen_modes[i];
@@ -411,6 +420,8 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 	struct rpi_touchscreen *ts;
 	int ret;
 
+	pr_err("panel probing\n");
+
 	ts = devm_kzalloc(dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
@@ -438,6 +449,7 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 	ts->backlight->props.max_brightness = RPI_TOUCHSCREEN_MAX_BRIGHTNESS;
 	ts->backlight->props.brightness = RPI_TOUCHSCREEN_MAX_BRIGHTNESS;
 
+	pr_err("panel initing\n");
 	drm_panel_init(&ts->base);
 	ts->base.dev = dev;
 	ts->base.funcs = &rpi_touchscreen_funcs;
@@ -445,6 +457,8 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 	ret = drm_panel_add(&ts->base);
 	if (ret < 0)
 		return ret;
+
+	pr_err("panel attaching\n");
 
 	return mipi_dsi_attach(dsi);
 }
@@ -454,6 +468,8 @@ static int rpi_touchscreen_dsi_remove(struct mipi_dsi_device *dsi)
 	struct device *dev = &dsi->dev;
 	struct rpi_touchscreen *ts = dev_get_drvdata(dev);
 	int ret;
+
+	pr_err("panel removing\n");
 
 	ret = mipi_dsi_detach(dsi);
 	if (ret < 0) {
