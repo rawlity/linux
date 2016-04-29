@@ -142,8 +142,69 @@
 # define DSI_DISP1_ENABLE		BIT(0)
 
 #define DSI0_TXPKT_PIX_FIFO		0x20 /* AKA PIX_FIFO */
+
 #define DSI0_INT_STAT		0x24
 #define DSI0_INT_EN		0x28
+# define DSI1_INT_PHY_D3_ULPS		BIT(30)
+# define DSI1_INT_PHY_D3_STOP		BIT(29)
+# define DSI1_INT_PHY_D2_ULPS		BIT(28)
+# define DSI1_INT_PHY_D2_STOP		BIT(27)
+# define DSI1_INT_PHY_D1_ULPS		BIT(26)
+# define DSI1_INT_PHY_D1_STOP		BIT(25)
+# define DSI1_INT_PHY_D0_ULPS		BIT(24)
+# define DSI1_INT_PHY_D0_STOP		BIT(23)
+# define DSI1_INT_FIFO_ERR		BIT(22)
+# define DSI1_INT_PHY_DIR_RTF		BIT(21)
+# define DSI1_INT_PHY_RXLPDT		BIT(20)
+# define DSI1_INT_PHY_RXTRIG		BIT(19)
+# define DSI1_INT_PHY_D0_LPDT		BIT(18)
+# define DSI1_INT_PHY_DIR_FTR		BIT(17)
+
+/* Signaled when the clock lane enters the given state. */
+# define DSI1_INT_PHY_CLOCK_ULPS	BIT(16)
+# define DSI1_INT_PHY_CLOCK_HS		BIT(15)
+# define DSI1_INT_PHY_CLOCK_STOP	BIT(14)
+
+/* Signaled on timeouts */
+# define DSI1_INT_PR_TO			BIT(13)
+# define DSI1_INT_TA_TO			BIT(12)
+# define DSI1_INT_LPRX_TO		BIT(11)
+# define DSI1_INT_HSTX_TO		BIT(10)
+
+/* Contention on a line when trying to drive the line low */
+# define DSI1_INT_ERR_CONT_LP1		BIT(9)
+# define DSI1_INT_ERR_CONT_LP0		BIT(8)
+
+/* Control error: incorrect line state sequence on data lane 0. */
+# define DSI1_INT_ERR_CONTROL		BIT(7)
+/* LPDT synchronization error (bits received not a multiple of 8. */
+
+# define DSI1_INT_ERR_SYNC_ESC		BIT(6)
+/* Signaled after receiving an error packet from the display in
+ * response to a read.
+ */
+# define DSI1_INT_RXPKT2		BIT(5)
+/* Signaled after receiving a packet.  The header and optional short
+ * response will be in RXPKT1H, and a long response will be in the
+ * RXPKT_FIFO.
+ */
+# define DSI1_INT_RXPKT1		BIT(4)
+# define DSI1_INT_TXPKT2_DONE		BIT(3)
+# define DSI1_INT_TXPKT2_END		BIT(2)
+/* Signaled after all repeats of TXPKT1 are transferred. */
+# define DSI1_INT_TXPKT1_DONE		BIT(1)
+/* Signaled after each TXPKT1 repeat is scheduled. */
+# define DSI1_INT_TXPKT1_END		BIT(0)
+
+#define DSI1_INTERRUPTS_ALWAYS_ENABLED	(DSI1_INT_ERR_SYNC_ESC | \
+					 DSI1_INT_ERR_CONTROL |	 \
+					 DSI1_INT_ERR_CONT_LP0 | \
+					 DSI1_INT_ERR_CONT_LP1 | \
+					 DSI1_INT_HSTX_TO |	 \
+					 DSI1_INT_LPRX_TO |	 \
+					 DSI1_INT_TA_TO |	 \
+					 DSI1_INT_PR_TO)
+
 #define DSI0_STAT		0x2c
 #define DSI0_HSTX_TO_CNT	0x30
 #define DSI0_LPRX_TO_CNT	0x34
@@ -973,6 +1034,9 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	pktc |= VC4_SET_FIELD(1, DSI_TXPKT1C_CMD_REPEAT);
 	pktc |= DSI_TXPKT1C_CMD_EN;
 
+	DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
+				DSI1_INT_TXPKT1_DONE));
+
 	DSI_PORT_WRITE(TXPKT1H, pkth);
 	DSI_PORT_WRITE(TXPKT1C, pktc);
 
@@ -1067,6 +1131,45 @@ static const struct clk_ops vc4_dsi_byte_clock_ops = {
 	.set_rate = vc4_dsi_byte_clock_set_rate,
 	.round_rate = vc4_dsi_byte_clock_round_rate,
 };
+
+static void dsi_handle_error(struct vc4_dsi *dsi,
+			     irqreturn_t *ret, u32 stat, u32 bit,
+			     const char *type)
+{
+	if (!(stat & bit))
+		return;
+
+	DRM_ERROR("DSI%d: %s error\n", dsi->port, type);
+	*ret = IRQ_HANDLED;
+}
+
+static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
+{
+	struct vc4_dsi *dsi = data;
+	u32 stat = DSI_PORT_READ(INT_STAT);
+	irqreturn_t ret = IRQ_NONE;
+
+	DSI_PORT_WRITE(INT_STAT, stat);
+
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_ERR_SYNC_ESC, "LPDT sync");
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_ERR_CONTROL, "data lane 0 sequence");
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_ERR_CONT_LP0, "LP0 contention");
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_ERR_CONT_LP1, "LP1 contention");
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_HSTX_TO, "HSTX timeout");
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_LPRX_TO, "LPRX timeout");
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_TA_TO, "turnaround timeout");
+	dsi_handle_error(dsi, &ret, stat,
+			 DSI1_INT_PR_TO, "peripheral reset timeout");
+
+	return ret;
+}
 
 static int
 vc4_dsi_init_phy_byte_clock(struct vc4_dsi *dsi)
@@ -1182,6 +1285,19 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		 */
 		dsi->reg_paddr = be32_to_cpup(of_get_address(dev->of_node,
 							     0, NULL, NULL));
+	}
+
+	/* At startup enable error-reporting interrupts and nothing else. */
+	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
+	/* Clear any existing interrupt state. */
+	DSI_PORT_WRITE(INT_STAT, DSI_PORT_READ(INT_STAT));
+
+	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
+			       vc4_dsi_irq_handler, 0, "vc4 dsi", dsi);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get interrupt: %d\n", ret);
+		return ret;
 	}
 
 	dsi->escape_clock = devm_clk_get(dev, "escape");
