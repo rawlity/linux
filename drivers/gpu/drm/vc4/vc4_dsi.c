@@ -453,6 +453,8 @@ dsi_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 	dma_cookie_t cookie;
 	int ret;
 
+	dev_info(&dsi->pdev->dev, "WRITE 0x%04x -> 0x%08x\n", offset, val);
+
 	if (!chan) {
 		writel(val, dsi->regs + offset);
 		return;
