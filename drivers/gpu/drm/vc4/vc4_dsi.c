@@ -48,8 +48,20 @@
 # define DSI_TXPKT1C_TRIG_CMD_SHIFT	24
 # define DSI_TXPKT1C_CMD_REPEAT_MASK	VC4_MASK(23, 10)
 # define DSI_TXPKT1C_CMD_REPEAT_SHIFT	10
+
 # define DSI_TXPKT1C_DISPLAY_NO_MASK	VC4_MASK(9, 8)
 # define DSI_TXPKT1C_DISPLAY_NO_SHIFT	8
+/* Short, trigger, BTA, or a long packet that fits all in CMDFIFO. */
+# define DSI_TXPKT1C_DISPLAY_NO_SHORT		0
+/* Primary display where cmdfifo provides part of the payload and
+ * pixelvalve the rest.
+ */
+# define DSI_TXPKT1C_DISPLAY_NO_PRIMARY		1
+/* Secondary display where cmdfifo provides part of the payload and
+ * pixfifo the rest.
+ */
+# define DSI_TXPKT1C_DISPLAY_NO_SECONDARY	2
+
 # define DSI_TXPKT1C_CMD_TX_TIME_MASK	VC4_MASK(7, 6)
 # define DSI_TXPKT1C_CMD_TX_TIME_SHIFT	6
 # define DSI_TXPKT1C_CMD_CTRL_MASK	VC4_MASK(5, 4)
@@ -1002,8 +1014,10 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	bool is_long = mipi_dsi_packet_format_is_long(msg->type);
 	u32 cmd_fifo_len = 0, pix_fifo_len = 0;
 
-	pr_err("DSI host xfer\n");
 	mipi_dsi_create_packet(&packet, msg);
+	pr_err("DSI host xfer %db, %s\n",
+	       packet.payload_length,
+	       is_long ? "long" : "short");
 
 	pkth |= VC4_SET_FIELD(packet.header[0], DSI_TXPKT1H_BC_DT);
 	pkth |= VC4_SET_FIELD(packet.header[1] |
@@ -1026,19 +1040,40 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 		WARN_ON_ONCE(pix_fifo_len >= DSI_PIX_FIFO_DEPTH);
 
 		pkth |= VC4_SET_FIELD(cmd_fifo_len, DSI_TXPKT1H_BC_CMDFIFO);
-	} else {
 	}
 
-	for (i = 0; i < packet.payload_length; i++)
+	dev_info(&dsi->pdev->dev, "FIFO setup: %d, %d\n",
+		 cmd_fifo_len, pix_fifo_len);
+
+	for (i = 0; i < cmd_fifo_len; i++)
 		DSI_PORT_WRITE(TXPKT_CMD_FIFO, packet.payload[i]);
+	for (i = 0; i < pix_fifo_len; i++) {
+		const uint8_t *pix = packet.payload + cmd_fifo_len + i * 4;
+		DSI_PORT_WRITE(TXPKT_PIX_FIFO,
+			       pix[0] |
+			       pix[1] << 8 |
+			       pix[2] << 16 |
+			       pix[3] << 24);
+	}
 
 	if (msg->flags & MIPI_DSI_MSG_USE_LPM)
 		pktc |= DSI_TXPKT1C_CMD_MODE_LP;
 	if (is_long)
 		pktc |= DSI_TXPKT1C_CMD_TYPE_LONG;
 
+	/* Send one copy of the packet.  Larger repeats are used for pixel
+	 * data in command mode.
+	 */
 	pktc |= VC4_SET_FIELD(1, DSI_TXPKT1C_CMD_REPEAT);
+
 	pktc |= DSI_TXPKT1C_CMD_EN;
+	if (pix_fifo_len) {
+		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_NO_SECONDARY,
+				      DSI_TXPKT1C_DISPLAY_NO);
+	} else {
+		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_NO_SHORT,
+				      DSI_TXPKT1C_DISPLAY_NO);
+	}
 
 	/* Enable interrupts for the transfer completion. */
 	dsi->xfer_result = 0;
