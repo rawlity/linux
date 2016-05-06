@@ -492,6 +492,13 @@ dsi_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 	ret = dma_sync_wait(chan, cookie);
 	if (ret)
 		DRM_ERROR("Failed to wait for DMA: %d\n", ret);
+
+	if (offset != DSI1_TXPKT_CMD_FIFO &&
+	    offset != DSI1_TXPKT_PIX_FIFO) {
+		dev_info(&dsi->pdev->dev,
+			 "             -> 0x%08x\n",
+			 readl(dsi->regs + (offset)));
+	}
 }
 
 #define DSI_READ(offset) readl(dsi->regs + (offset))
@@ -1086,8 +1093,10 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	DSI_PORT_WRITE(TXPKT1C, pktc);
 
 	if (!wait_for_completion_timeout(&dsi->xfer_completion,
-					 msecs_to_jiffies(1000))) {
+					 msecs_to_jiffies(100))) {
 		dev_err(&dsi->pdev->dev, "transfer interrupt wait timeout");
+		dev_err(&dsi->pdev->dev, "instat: 0x%08x\n",
+			DSI_PORT_READ(INT_STAT));
 		ret = -ETIMEDOUT;
 	} else {
 		ret = dsi->xfer_result;

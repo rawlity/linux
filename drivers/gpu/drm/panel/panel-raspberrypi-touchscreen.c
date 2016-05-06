@@ -204,7 +204,7 @@ enum REG_ADDR {
 struct rpi_touchscreen {
 	struct drm_panel base;
 	struct mipi_dsi_device *dsi;
-	struct i2c_client *client;
+	struct i2c_client *bridge_i2c;
 	struct backlight_device *backlight;
 
 	bool prepared;
@@ -234,15 +234,15 @@ static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
 static u8 rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg)
 {
 	return 0; /* XXX */
-	return i2c_smbus_read_byte_data(ts->client, reg);
+	return i2c_smbus_read_byte_data(ts->bridge_i2c, reg);
 }
 
-static int rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
+static void rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
 {
 	dev_info(ts->base.dev, "W 0x%02x -> 0x%02x\n", reg, val);
 
-	return 0; /* XXX */
-	return i2c_smbus_write_byte_data(ts->client, reg, val);
+	return; /* XXX */
+	i2c_smbus_write_byte_data(ts->bridge_i2c, reg, val);
 }
 
 static int rpi_touchscreen_write(struct rpi_touchscreen *ts, u16 reg, u32 val)
@@ -321,6 +321,8 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 
 	if (ts->enabled)
 		return 0;
+
+	mipi_dsi_turn_on_peripheral(ts->dsi);
 
 	/* Turn on the backklight. */
 	rpi_touchscreen_i2c_write(ts, REG_PWM, 255);
@@ -408,7 +410,9 @@ static int rpi_touchscreen_backlight_update(struct backlight_device *bl)
 	    bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		brightness = 0;
 
-	return rpi_touchscreen_i2c_write(ts, REG_PWM, brightness);
+	rpi_touchscreen_i2c_write(ts, REG_PWM, brightness);
+
+	return 0;
 }
 
 static const struct backlight_ops rpi_touchscreen_backlight_ops = {
