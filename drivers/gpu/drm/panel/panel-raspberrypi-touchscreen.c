@@ -471,10 +471,8 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ts->bridge_i2c =
 		rpi_touchscreen_get_i2c(dev, "raspberrypi,touchscreen-bridge");
-	if (IS_ERR(ts->bridge_i2c)) {
-		ret = PTR_ERR(ts->bridge_i2c);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "TS bridge i2c error: %d\n", ret);
+	if (!ts->bridge_i2c) {
+		ret = -EPROBE_DEFER;
 		return ret;
 	}
 
