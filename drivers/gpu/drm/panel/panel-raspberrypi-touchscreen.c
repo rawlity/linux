@@ -322,8 +322,6 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	if (ts->enabled)
 		return 0;
 
-	mipi_dsi_turn_on_peripheral(ts->dsi);
-
 	/* Turn on the backklight. */
 	rpi_touchscreen_i2c_write(ts, REG_PWM, 255);
 
