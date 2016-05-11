@@ -173,16 +173,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-
-			pitouchscreen_bridge: bridge@45 {
-				compatible = "raspberrypi,touchscreen-bridge-i2c";
-				reg = <0x45>;
-			};
-
-			pitouchscreen_touch: bridge@38 {
-				compatible = "raspberrypi,touchscreen-ts-i2c";
-				reg = <0x38>;
-			};
 		};
 
 		pixelvalve@7e206000 {
@@ -341,6 +331,27 @@
 
 		vc4: gpu {
 			compatible = "brcm,bcm2835-vc4";
+		};
+
+		i2c_dsi: i2c {
+			compatible = "i2c-gpio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			gpios = <&gpio 28 0
+				 &gpio 29 0>;
+			i2c-gpio,sda-open-drain;
+			i2c-gpio,scl-open-drain;
+			i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+
+			pitouchscreen_bridge: bridge@45 {
+				compatible = "raspberrypi,touchscreen-bridge-i2c";
+				reg = <0x45>;
+			};
+
+			pitouchscreen_touch: bridge@38 {
+				compatible = "raspberrypi,touchscreen-ts-i2c";
+				reg = <0x38>;
+			};
 		};
 	};
 
