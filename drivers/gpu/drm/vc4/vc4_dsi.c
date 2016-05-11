@@ -973,17 +973,13 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 			       DSI_DISP0_ENABLE);
 	}
 
-	if (divider == 24) {
-		DSI_PORT_WRITE(DISP1_CTRL,
-			       VC4_SET_FIELD(DSI_DISP1_PFORMAT_24BIT,
-					     DSI_DISP1_PFORMAT) |
-			       DSI_DISP1_ENABLE);
-	} else {
-		DSI_PORT_WRITE(DISP1_CTRL,
-			       VC4_SET_FIELD(DSI_DISP1_PFORMAT_32BIT_LE,
-					     DSI_DISP1_PFORMAT) |
-			       DSI_DISP1_ENABLE);
-	}
+	/* Set up DISP1 for transferring long command payloads through
+	 * the pixfifo.
+	 */
+	DSI_PORT_WRITE(DISP1_CTRL,
+		       VC4_SET_FIELD(DSI_DISP1_PFORMAT_32BIT_LE,
+				     DSI_DISP1_PFORMAT) |
+		       DSI_DISP1_ENABLE);
 
 	if (!(dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
 		phyc |= DSI_PHYC_HS_CLK_CONTINUOUS;
@@ -1085,6 +1081,7 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	/* Enable interrupts for the transfer completion. */
 	dsi->xfer_result = 0;
 	reinit_completion(&dsi->xfer_completion);
+	DSI_PORT_WRITE(INT_STAT, DSI1_INT_TXPKT1_DONE);
 	DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
 				DSI1_INT_TXPKT1_DONE));
 
