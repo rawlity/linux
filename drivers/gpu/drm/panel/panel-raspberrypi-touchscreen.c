@@ -216,7 +216,11 @@ struct rpi_touchscreen {
 
 static const struct drm_display_mode rpi_touchscreen_modes[] = {
 	{
-		.clock = 15720,
+		/* This is assuming that we'll be running the DSI PLL
+		 * at 2Ghz / 3 (since we only get integer dividers),
+		 * so a pixel clock of 2Ghz / 3 / 8.
+		 */
+		.clock = 83333,
 		.hdisplay = 800,
 		.hsync_start = 800 + 61,
 		.hsync_end = 800 + 61 + 2,
