@@ -465,7 +465,9 @@ dsi_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 	dma_cookie_t cookie;
 	int ret;
 
+#if 0 /* XXX */
 	dev_info(&dsi->pdev->dev, "WRITE 0x%04x -> 0x%08x\n", offset, val);
+#endif
 
 	if (!chan) {
 		writel(val, dsi->regs + offset);
@@ -493,12 +495,14 @@ dsi_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 	if (ret)
 		DRM_ERROR("Failed to wait for DMA: %d\n", ret);
 
+#if 0 /* XXX */
 	if (offset != DSI1_TXPKT_CMD_FIFO &&
 	    offset != DSI1_TXPKT_PIX_FIFO) {
 		dev_info(&dsi->pdev->dev,
 			 "             -> 0x%08x\n",
 			 readl(dsi->regs + (offset)));
 	}
+#endif
 }
 
 #define DSI_READ(offset) readl(dsi->regs + (offset))
