@@ -209,11 +209,14 @@ struct rpi_touchscreen {
 
 	bool prepared;
 	bool enabled;
+
+	/* Version of the firmware on the bridge chip */
+	int atmel_ver;
 };
 
 static const struct drm_display_mode rpi_touchscreen_modes[] = {
 	{
-		.clock = 157200,
+		.clock = 15720,
 		.hdisplay = 800,
 		.hsync_start = 800 + 61,
 		.hsync_end = 800 + 61 + 2,
@@ -233,6 +236,8 @@ static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
 
 static u8 rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg)
 {
+	dev_info(ts->base.dev, "R 0x%02x\n", reg);
+
 	return i2c_smbus_read_byte_data(ts->bridge_i2c, reg);
 }
 
@@ -448,7 +453,7 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
 	struct rpi_touchscreen *ts;
-	int ret;
+	int ret, ver;
 
 	pr_err("panel probing\n");
 
@@ -473,6 +478,20 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
+	ver = rpi_touchscreen_i2c_read(ts, REG_ID);
+	switch (ver) {
+	case 0xde:
+		ts->atmel_ver = 1;
+		break;
+	case 0xc3:
+		ts->atmel_ver = 2;
+		break;
+	default:
+		dev_err(dev, "Unknown Atmel firmware revision: 0x%02x\n", ver);
+		ret = -ENODEV;
+		goto err_release_bridge;
+	}
+
 #if 0
 	ts->backlight =
 		devm_backlight_device_register(dev,
@@ -495,11 +514,15 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 
 	ret = drm_panel_add(&ts->base);
 	if (ret < 0)
-		return ret;
+		goto err_release_bridge;
 
 	pr_err("panel attaching\n");
 
 	return mipi_dsi_attach(dsi);
+
+err_release_bridge:
+	put_device(&ts->bridge_i2c->dev);
+	return ret;
 }
 
 static int rpi_touchscreen_dsi_remove(struct mipi_dsi_device *dsi)
@@ -518,6 +541,8 @@ static int rpi_touchscreen_dsi_remove(struct mipi_dsi_device *dsi)
 
 	drm_panel_detach(&ts->base);
 	drm_panel_remove(&ts->base);
+
+	put_device(&ts->bridge_i2c->dev);
 
 	return 0;
 }
