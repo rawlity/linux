@@ -233,16 +233,18 @@ static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
 
 static u8 rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg)
 {
-	return 0; /* XXX */
 	return i2c_smbus_read_byte_data(ts->bridge_i2c, reg);
 }
 
 static void rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
 {
+	int ret;
+
 	dev_info(ts->base.dev, "W 0x%02x -> 0x%02x\n", reg, val);
 
-	return; /* XXX */
-	i2c_smbus_write_byte_data(ts->bridge_i2c, reg, val);
+	ret = i2c_smbus_write_byte_data(ts->bridge_i2c, reg, val);
+	if (ret)
+		dev_err(&ts->dsi->dev, "I2C write failed: %d\n", ret);
 }
 
 static int rpi_touchscreen_write(struct rpi_touchscreen *ts, u16 reg, u32 val)
@@ -425,6 +427,23 @@ static const struct drm_panel_funcs rpi_touchscreen_funcs = {
 	.get_modes = rpi_touchscreen_get_modes,
 };
 
+static struct i2c_client *rpi_touchscreen_get_i2c(struct device *dev,
+						  const char *name)
+{
+	struct device_node *node;
+	struct i2c_client *client;
+
+	node = of_parse_phandle(dev->of_node, name, 0);
+	if (!node)
+		return ERR_PTR(-ENODEV);
+
+	client = of_find_i2c_device_by_node(node);
+
+	of_node_put(node);
+
+	return client;
+}
+
 static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 {
 	struct device *dev = &dsi->dev;
@@ -445,8 +464,15 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = 1;
 
-	// XXX
-	//ts->client = client;
+	ts->bridge_i2c =
+		rpi_touchscreen_get_i2c(dev, "raspberrypi,touchscreen-bridge");
+	if (IS_ERR(ts->bridge_i2c)) {
+		ret = PTR_ERR(ts->bridge_i2c);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "TS bridge i2c error: %d\n", ret);
+		return ret;
+	}
+
 #if 0
 	ts->backlight =
 		devm_backlight_device_register(dev,
