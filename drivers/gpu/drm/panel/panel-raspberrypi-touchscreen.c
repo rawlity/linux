@@ -488,8 +488,8 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 		break;
 	default:
 		dev_err(dev, "Unknown Atmel firmware revision: 0x%02x\n", ver);
-		ret = -ENODEV;
-		goto err_release_bridge;
+		ts->atmel_ver = 2;
+		break;
 	}
 
 #if 0
