@@ -28,6 +28,11 @@
 #define BCM2835_I2C_FIFO	0x10
 #define BCM2835_I2C_DIV		0x14
 #define BCM2835_I2C_DEL		0x18
+/*
+ * 16-bit field for the number of SCL cycles to wait after rising SCL
+ * before deciding the slave is not responding.  0 disables the
+ * timeout detection.
+ */
 #define BCM2835_I2C_CLKT	0x1c
 
 #define BCM2835_I2C_C_READ	BIT(0)
@@ -241,6 +246,7 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 	u32 bus_clk_rate, divider, redl, fedl;
 	int ret;
 	struct i2c_adapter *adap;
+	u32 clkt;
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
@@ -282,6 +288,15 @@ static int bcm2835_i2c_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_DIV, divider);
+
+	/*
+	 * SMBUS says "Devices participating in a transfer will
+	 * timeout when any clock low exceeds the value of
+	 * T_TIMEOUT,MIN of 25 ms."
+	 */
+	clkt = DIV_ROUND_UP(25 * bus_clk_rate, 1000);
+	clkt = min(clkt, 0xffffu);
+	bcm2835_i2c_writel(i2c_dev, BCM2835_I2C_CLKT, clkt);
 
 	/* Number of core clocks to wait after falling edge before
 	 * outputting the next data bit.  Note that both FEDL and REDL
