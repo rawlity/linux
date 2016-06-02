@@ -119,6 +119,45 @@
 		};
 	};
 
+	fragment@15 {
+		target = <&i2c0>;
+		__overlay__  {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_gpio28>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pitouchscreen_bridge: bridge@45 {
+				compatible = "raspberrypi,touchscreen-bridge-i2c";
+				reg = <0x45>;
+			};
+
+			pitouchscreen_touch: bridge@38 {
+				compatible = "raspberrypi,touchscreen-ts-i2c";
+				reg = <0x38>;
+			};
+		};
+	};
+
+	fragment@16 {
+		target = <&dsi1>;
+		__overlay__  {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			brcm,panel = <&pitouchscreen>;
+
+			pitouchscreen: panel {
+				compatible = "raspberrypi,touchscreen";
+				reg = <0>;
+
+				raspberrypi,touchscreen-bridge = <&pitouchscreen_bridge>;
+			};
+		};
+	};
+
 	__overrides__ {
 		cma-256 = <0>,"+0-1-2-3-4";
 		cma-192 = <0>,"-0+1-2-3-4";
