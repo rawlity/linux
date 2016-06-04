@@ -248,21 +248,44 @@ static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
 	return container_of(panel, struct rpi_touchscreen, base);
 }
 
-static int rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg)
+#define rpi_touchscreen_i2c_read(ts, reg) _rpi_touchscreen_i2c_read(ts, #reg, reg)
+
+static int _rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, const char *regname, u8 reg)
 {
-	return i2c_smbus_read_byte_data(ts->bridge_i2c, reg);
+	int ret;
+	ret = i2c_smbus_read_byte_data(ts->bridge_i2c, reg);
+	if (ret < 0) {
+		dev_info(&ts->dsi->dev, "atmel read  %s (0x%02x) = ERROR (%d)\n",
+			 regname, reg, ret);
+	} else {
+		dev_info(&ts->dsi->dev, "atmel read  %s (0x%02x) = 0x%02x\n",
+			 regname, reg, ret);
+	}
+
+	return ret;
 }
 
-static void rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
+#define rpi_touchscreen_i2c_write(ts, reg, val) _rpi_touchscreen_i2c_write(ts, #reg, reg, val)
+
+static void _rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts,
+				      const char *regname,
+				      u8 reg, u8 val)
 {
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(ts->bridge_i2c, reg, val);
 	if (ret)
 		dev_err(&ts->dsi->dev, "I2C write failed: %d\n", ret);
+	else {
+		dev_info(&ts->dsi->dev, "atmel write %s (0x%02x) = 0x%02x\n",
+			 regname, reg, val);
+	}
 }
 
-static int rpi_touchscreen_write(struct rpi_touchscreen *ts, u16 reg, u32 val)
+#define rpi_touchscreen_write(ts, reg, val) _rpi_touchscreen_write(ts, #reg, reg, val)
+
+static int _rpi_touchscreen_write(struct rpi_touchscreen *ts,
+				 const char *regname, u16 reg, u32 val)
 {
 	u8 msg[] = {
 		reg,
@@ -273,11 +296,103 @@ static int rpi_touchscreen_write(struct rpi_touchscreen *ts, u16 reg, u32 val)
 		val >> 24,
 	};
 
-	dev_info(ts->base.dev, "W 0x%04x -> 0x%08x\n", reg, val);
+	dev_info(ts->base.dev, "DSI write %s (0x%04x) = 0x%08x\n",
+		 regname, reg, val);
 
 	mipi_dsi_dcs_write_buffer(ts->dsi, msg, sizeof(msg));
 
 	return 0;
+}
+
+static int rpi_touchscreen_i2c_tc358762_addr(struct rpi_touchscreen *ts, u16 reg)
+{
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(ts->bridge_i2c, REG_WR_ADDRH,
+					reg >> 8);
+	if (ret) {
+		dev_err(&ts->dsi->dev, "I2C WR_ADDRH failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = i2c_smbus_write_byte_data(ts->bridge_i2c, REG_WR_ADDRL,
+					reg & 0xff);
+	if (ret) {
+		dev_err(&ts->dsi->dev, "I2C WR_ADDRL failed: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void
+_rpi_touchscreen_tc358762_read(struct rpi_touchscreen *ts,
+			       const char *regname, u16 reg)
+{
+	int readh, readl;
+
+	rpi_touchscreen_i2c_tc358762_addr(ts, reg);
+
+	readh = i2c_smbus_read_byte_data(ts->bridge_i2c, REG_READH);
+	readl = i2c_smbus_read_byte_data(ts->bridge_i2c, REG_READL);
+
+	if (readh < 0) {
+		dev_err(&ts->dsi->dev,
+			"TC358762 read %s (0x%04x) = ERROR (%d)\n",
+			regname, reg, readh);
+	} else if (readl < 0) {
+		dev_err(&ts->dsi->dev,
+			"TC358762 read %s (0x%04x) = ERROR (%d)\n",
+			regname, reg, readl);
+	} else {
+		dev_info(&ts->dsi->dev,
+			 "TC358762 read %s (0x%04x) = 0x%08x",
+			 regname, reg, (readh << 8) | readl);
+	}
+}
+
+struct regdump {
+	const char *reg;
+	u32 offset;
+};
+
+#define REGDUMP(reg) { #reg, reg }
+
+static void
+rpi_touchscreen_dump(struct rpi_touchscreen *ts)
+{
+	struct regdump i2c_regs[] = {
+		REGDUMP(REG_POWERON),
+		REGDUMP(REG_PORTA),
+		REGDUMP(REG_PORTB),
+		REGDUMP(REG_PWM),
+	};
+	struct regdump tc_regs[] = {
+		REGDUMP(DSI_LANEENABLE),
+		REGDUMP(PPI_D0S_CLRSIPOCOUNT),
+		REGDUMP(PPI_D1S_CLRSIPOCOUNT),
+		REGDUMP(PPI_D0S_ATMR),
+		REGDUMP(PPI_D1S_ATMR),
+		REGDUMP(PPI_LPTXTIMECNT),
+		REGDUMP(SPICMR),
+		REGDUMP(LCDCTRL),
+		REGDUMP(SYSCTRL),
+		REGDUMP(PPI_STARTPPI),
+		REGDUMP(DSI_STARTDSI),
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(i2c_regs); i++) {
+		_rpi_touchscreen_i2c_read(ts,
+					  i2c_regs[i].reg,
+					  i2c_regs[i].offset);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(tc_regs); i++) {
+		_rpi_touchscreen_tc358762_read(ts,
+					       tc_regs[i].reg,
+					       tc_regs[i].offset);
+	}
 }
 
 static int rpi_touchscreen_disable(struct drm_panel *panel)
@@ -395,7 +510,9 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	}
 
 	ts->enabled = true;
-	pr_err("enable done\n");
+
+	dev_info(&ts->dsi->dev, "Panel enable done.\n");
+	rpi_touchscreen_dump(ts);
 
 	return 0;
 }
@@ -508,6 +625,9 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 		ret = -EPROBE_DEFER;
 		return ret;
 	}
+
+	dev_info(dev, "Panel state at boot:\n");
+	rpi_touchscreen_dump(ts);
 
 	ver = rpi_touchscreen_i2c_read(ts, REG_ID);
 	if (ver < 0)
