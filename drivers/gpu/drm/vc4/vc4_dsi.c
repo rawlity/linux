@@ -1255,10 +1255,19 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	if (!wait_for_completion_timeout(&dsi->xfer_completion,
 					 msecs_to_jiffies(100))) {
+		u32 stat = DSI_PORT_READ(STAT);
+
 		dev_err(&dsi->pdev->dev, "transfer interrupt wait timeout");
-		dev_err(&dsi->pdev->dev, "instat: 0x%08x\n",
-			DSI_PORT_READ(INT_STAT));
-		ret = -ETIMEDOUT;
+		dev_err(&dsi->pdev->dev, "INT_STAT: 0x%08x, STAT: 0x%08x\n",
+			DSI_PORT_READ(INT_STAT), stat);
+
+		if (stat & DSI1_STAT_TXPKT1_DONE) {
+			dev_info(&dsi->pdev->dev,
+				 "STAT reports DONE, though.\n");
+			ret = 0;
+		} else {
+			ret = -ETIMEDOUT;
+		}
 	} else {
 		ret = dsi->xfer_result;
 	}
