@@ -280,6 +280,11 @@ static void _rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts,
 		dev_info(&ts->dsi->dev, "atmel write %s (0x%02x) = 0x%02x\n",
 			 regname, reg, val);
 	}
+
+	/* Dummy read to work around i2c errors on the first read
+	 * after any write.
+	 */
+	i2c_smbus_read_byte_data(ts->bridge_i2c, REG_ID);
 }
 
 #define rpi_touchscreen_write(ts, reg, val) _rpi_touchscreen_write(ts, #reg, reg, val)
@@ -321,6 +326,10 @@ static int rpi_touchscreen_i2c_tc358762_addr(struct rpi_touchscreen *ts, u16 reg
 		dev_err(&ts->dsi->dev, "I2C WR_ADDRL failed: %d\n", ret);
 		return ret;
 	}
+	/* Dummy read to work around i2c errors on the first read
+	 * after any write.
+	 */
+	i2c_smbus_read_byte_data(ts->bridge_i2c, REG_ID);
 
 	return 0;
 }
