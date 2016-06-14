@@ -653,6 +653,10 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 		return -ENODEV;
 	}
 
+	/* Power down once to reset state. */
+	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
+	udelay(100);
+
 #if 0
 	ts->backlight =
 		devm_backlight_device_register(dev,
