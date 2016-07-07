@@ -614,6 +614,10 @@ config TOUCHSCREEN_RPI_FT5406
 	help
 	  Say Y here to enable the Raspberry Pi memory based FT5406 device
 
+config TOUCHSCREEN_RPI_I2C_FT5406
+	tristate "Raspberry Pi I2C FT5406 driver"
+	help
+	  Say Y here to enable the Raspberry Pi I2C-based FT5406 device
 
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
