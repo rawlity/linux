@@ -142,6 +142,32 @@
 		};
 	};
 
+	fragment@17 {
+		target = <&soc>;
+		__overlay__  {
+			i2c_dsi: i2c {
+				compatible = "i2c-gpio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				gpios = <&gpio 28 0
+					&gpio 29 0>;
+				i2c-gpio,sda-open-drain;
+				i2c-gpio,scl-open-drain;
+				i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+
+				pitouchscreen_bridge: bridge@45 {
+					compatible = "raspberrypi,touchscreen-bridge-i2c";
+					reg = <0x45>;
+				};
+
+				pitouchscreen_touch: bridge@38 {
+					compatible = "raspberrypi,touchscreen-ft5406";
+					reg = <0x38>;
+				};
+			};
+		};
+	};
+
 	__overrides__ {
 		cma-256 = <0>,"+0-1-2-3-4";
 		cma-192 = <0>,"-0+1-2-3-4";
