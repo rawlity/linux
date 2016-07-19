@@ -35,6 +35,9 @@
 #include "vc4_drv.h"
 #include "vc4_packet.h"
 
+/* Number of tiles in between GFXH30 workaround primitive emits. */
+#define GFXH30_TILE_COUNT	5
+
 struct vc4_rcl_setup {
 	struct drm_gem_cma_object *color_read;
 	struct drm_gem_cma_object *color_write;
@@ -44,6 +47,7 @@ struct vc4_rcl_setup {
 	struct drm_gem_cma_object *msaa_zs_write;
 
 	struct drm_gem_cma_object *rcl;
+	struct drm_gem_cma_object *gfxh30;
 	u32 next_offset;
 };
 
@@ -112,6 +116,28 @@ static void vc4_tile_coordinates(struct vc4_rcl_setup *setup,
 	rcl_u8(setup, VC4_PACKET_TILE_COORDINATES);
 	rcl_u8(setup, x);
 	rcl_u8(setup, y);
+}
+
+/* Emits the GFX-H30 workaround.
+ *
+ * The V3D 2.x hardware has a bug where if too many tiles are set up
+ * without any primitives being rendered in those tiles, a FIFO will
+ * get filled and never drain.  To work around this, you need to just
+ * make sure that some primitive happens.
+ *
+ * We do this by emitting a small NV shader record and draw call, with
+ * a setup that means the primitive will be just clipped away.
+ */
+static void emit_gfxh30_workaround(struct vc4_exec_info *exec,
+				   struct vc4_rcl_setup *setup)
+{
+	rcl_u8(setup, VC4_PACKET_NV_SHADER_STATE);
+	rcl_u32(setup, setup->gfxh30->paddr + GFXH30_SHADER_REC_OFFSET);
+
+	rcl_u8(setup, VC4_PACKET_GL_ARRAY_PRIMITIVE);
+	rcl_u8(setup, 4 /* triangles */);
+	rcl_u32(setup, 3); /* vert count */
+	rcl_u32(setup, 0); /* vert start index */
 }
 
 static void emit_tile(struct vc4_exec_info *exec,
@@ -256,6 +282,8 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	uint8_t max_y_tile = args->max_y_tile;
 	uint8_t xtiles = max_x_tile - min_x_tile + 1;
 	uint8_t ytiles = max_y_tile - min_y_tile + 1;
+	uint32_t num_tiles = xtiles * ytiles;
+	uint32_t gfxh30_count;
 	uint8_t x, y;
 	uint32_t size, loop_body_size;
 
@@ -266,6 +294,12 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 		size += VC4_PACKET_CLEAR_COLORS_SIZE +
 			VC4_PACKET_TILE_COORDINATES_SIZE +
 			VC4_PACKET_STORE_TILE_BUFFER_GENERAL_SIZE;
+	}
+
+	if (setup->gfxh30) {
+		size += (DIV_ROUND_UP(num_tiles, GFXH30_TILE_COUNT) *
+			 (VC4_PACKET_NV_SHADER_STATE_SIZE +
+			  VC4_PACKET_GL_ARRAY_PRIMITIVE_SIZE));
 	}
 
 	if (setup->color_read) {
@@ -313,7 +347,7 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 		 (setup->color_write != NULL) +
 		 (setup->zs_write != NULL) - 1);
 
-	size += xtiles * ytiles * loop_body_size;
+	size += num_tiles * loop_body_size;
 
 	setup->rcl = &vc4_bo_create(dev, size, true)->base;
 	if (IS_ERR(setup->rcl))
@@ -349,10 +383,16 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	rcl_u16(setup, args->height);
 	rcl_u16(setup, args->color_write.bits);
 
+	gfxh30_count = 0;
 	for (y = min_y_tile; y <= max_y_tile; y++) {
 		for (x = min_x_tile; x <= max_x_tile; x++) {
 			bool first = (x == min_x_tile && y == min_y_tile);
 			bool last = (x == max_x_tile && y == max_y_tile);
+
+			if (++gfxh30_count == GFXH30_TILE_COUNT || last) {
+				emit_gfxh30_workaround(exec, setup);
+				gfxh30_count = 0;
+			}
 
 			emit_tile(exec, setup, x, y, first, last);
 		}
@@ -570,7 +610,10 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 
 int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 {
-	struct vc4_rcl_setup setup = {0};
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_rcl_setup setup = {
+		.gfxh30 = &vc4->gfxh30_workaround_bo->base,
+	};
 	struct drm_vc4_submit_cl *args = exec->args;
 	bool has_bin = args->bin_cl_size != 0;
 	int ret;

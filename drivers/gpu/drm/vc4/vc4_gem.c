@@ -29,6 +29,7 @@
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
+#include "vc4_packet.h"
 #include "vc4_regs.h"
 #include "vc4_trace.h"
 
@@ -907,7 +908,51 @@ fail:
 	return ret;
 }
 
-void
+static int
+setup_gfxh30_workaround(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	u32 *verts, *shader_rec;
+	int i;
+
+	vc4->gfxh30_workaround_bo = vc4_bo_create(dev, PAGE_SIZE, true);
+	if (IS_ERR(vc4->gfxh30_workaround_bo))
+		return PTR_ERR(vc4->gfxh30_workaround_bo);
+
+	/* Pre-shaded vertices for the GFXH-30 workaround, which
+	 * should always be off screen negative X/Y coordinates that
+	 * will be clipped away.  These are according to Figure 12,
+	 * "Shaded Vertex Memory Formats" in the VideoCore IV 3D
+	 * Architecture Reference Guide, with no clip header or point
+	 * size, and NVARY==0.
+	 */
+	i = 0;
+	verts = vc4->gfxh30_workaround_bo->base.vaddr + GFXH30_VERTS_OFFSET;
+	verts[i++] = 0xff00ff00; /* Xs, Ys, signed 12.4 fixed point */
+	verts[i++] = 0; /* Zs */
+	verts[i++] = 0; /* 1 / Wc */
+	verts[i++] = 0xff00ff00;
+	verts[i++] = 0;
+	verts[i++] = 0;
+	verts[i++] = 0xff00ff01;
+	verts[i++] = 0;
+	verts[i++] = 0;
+
+	/* NV (Non-vertex) shader state record */
+	i = 0;
+	shader_rec = (vc4->gfxh30_workaround_bo->base.vaddr +
+		      GFXH30_SHADER_REC_OFFSET);
+	shader_rec[i++] = (VC4_SET_FIELD(3 * sizeof(u32),
+					 VC4_NV_SHADER_STATE_VERTEX_STRIDE));
+	shader_rec[i++] = 0xd0d0d0d0; /* FS code address.  Never called. */
+	shader_rec[i++] = 0xd0d0d0d0; /* FS uniforms address.  Unused in HW. */
+	shader_rec[i++] = (vc4->gfxh30_workaround_bo->base.paddr +
+			   GFXH30_VERTS_OFFSET);
+
+	return 0;
+}
+
+int
 vc4_gem_init(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -926,6 +971,8 @@ vc4_gem_init(struct drm_device *dev)
 	INIT_WORK(&vc4->job_done_work, vc4_job_done_work);
 
 	mutex_init(&vc4->power_lock);
+
+	return setup_gfxh30_workaround(dev);
 }
 
 void
@@ -948,6 +995,11 @@ vc4_gem_destroy(struct drm_device *dev)
 
 	if (vc4->hang_state)
 		vc4_free_hang_state(dev, vc4->hang_state);
+
+	if (vc4->gfxh30_workaround_bo) {
+		drm_gem_object_unreference_unlocked(&vc4->gfxh30_workaround_bo->base.base);
+		vc4->gfxh30_workaround_bo = NULL;
+	}
 
 	vc4_bo_cache_destroy(dev);
 }

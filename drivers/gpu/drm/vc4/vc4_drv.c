@@ -244,7 +244,9 @@ static int vc4_drm_bind(struct device *dev)
 
 	drm_mode_config_init(drm);
 
-	vc4_gem_init(drm);
+	ret = vc4_gem_init(drm);
+	if (ret)
+		goto dev_destroy;
 
 	ret = component_bind_all(dev, drm);
 	if (ret)
@@ -276,6 +278,7 @@ unbind_all:
 	component_unbind_all(dev, drm);
 gem_destroy:
 	vc4_gem_destroy(drm);
+dev_destroy:
 	drm_dev_unref(drm);
 	vc4_bo_cache_destroy(drm);
 	return ret;

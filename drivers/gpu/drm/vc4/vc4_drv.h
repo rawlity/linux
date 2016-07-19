@@ -53,6 +53,8 @@ struct vc4_dev {
 	/* Protects bo_cache and the BO stats. */
 	struct mutex bo_lock;
 
+	struct vc4_bo *gfxh30_workaround_bo;
+
 	/* Sequence number for the last job queued in bin_job_list.
 	 * Starts at 0 (no jobs emitted).
 	 */
@@ -112,6 +114,9 @@ struct vc4_dev {
 
 	struct semaphore async_modeset;
 };
+
+#define GFXH30_VERTS_OFFSET		0
+#define GFXH30_SHADER_REC_OFFSET	(GFXH30_VERTS_OFFSET + 8 * 4)
 
 static inline struct vc4_dev *
 to_vc4_dev(struct drm_device *dev)
@@ -438,7 +443,7 @@ extern struct platform_driver vc4_dpi_driver;
 int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_gem.c */
-void vc4_gem_init(struct drm_device *dev);
+int vc4_gem_init(struct drm_device *dev);
 void vc4_gem_destroy(struct drm_device *dev);
 int vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
