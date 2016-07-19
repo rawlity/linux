@@ -173,6 +173,12 @@ vc4_save_hang_state(struct drm_device *dev)
 		state->bo_count += exec[i]->bo_count + unref_list_count;
 	}
 
+	/* Always include the workaround BO.  Sometimes the render CL
+	 * might not use it, but it shouldn't hurt to dump it.
+	 */
+	if (vc4->gfxh30_workaround_bo)
+		state->bo_count++;
+
 	kernel_state->bo = kcalloc(state->bo_count,
 				   sizeof(*kernel_state->bo), GFP_ATOMIC);
 
@@ -196,6 +202,13 @@ vc4_save_hang_state(struct drm_device *dev)
 			kernel_state->bo[next_bo++] = &bo->base.base;
 		}
 	}
+
+	if (vc4->gfxh30_workaround_bo) {
+		drm_gem_object_reference(&vc4->gfxh30_workaround_bo->base.base);
+		kernel_state->bo[next_bo++] =
+			&vc4->gfxh30_workaround_bo->base.base;
+	}
+
 	WARN_ON_ONCE(next_bo != state->bo_count);
 
 	if (exec[0])
