@@ -144,7 +144,7 @@ vc4_save_hang_state(struct drm_device *dev)
 	struct vc4_exec_info *exec[2];
 	struct vc4_bo *bo;
 	unsigned long irqflags;
-	unsigned int i, j, unref_list_count, prev_idx;
+	unsigned int i, j, unref_list_count, next_bo;
 
 	kernel_state = kcalloc(1, sizeof(*kernel_state), GFP_KERNEL);
 	if (!kernel_state)
@@ -180,23 +180,22 @@ vc4_save_hang_state(struct drm_device *dev)
 		return;
 	}
 
-	prev_idx = 0;
+	next_bo = 0;
 	for (i = 0; i < 2; i++) {
 		if (!exec[i])
 			continue;
 
 		for (j = 0; j < exec[i]->bo_count; j++) {
 			drm_gem_object_reference(&exec[i]->bo[j]->base);
-			kernel_state->bo[j + prev_idx] = &exec[i]->bo[j]->base;
+			kernel_state->bo[next_bo++] = &exec[i]->bo[j]->base;
 		}
 
 		list_for_each_entry(bo, &exec[i]->unref_list, unref_head) {
 			drm_gem_object_reference(&bo->base.base);
-			kernel_state->bo[j + prev_idx] = &bo->base.base;
-			j++;
+			kernel_state->bo[next_bo++] = &bo->base.base;
 		}
-		prev_idx = j + 1;
 	}
+	WARN_ON_ONCE(next_bo != state->bo_count);
 
 	if (exec[0])
 		state->start_bin = exec[0]->ct0ca;
