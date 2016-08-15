@@ -451,6 +451,14 @@ void *vc4_prime_vmap(struct drm_gem_object *obj)
 	return drm_gem_cma_prime_vmap(obj);
 }
 
+int vc4_prime_begin_cpu_access(struct drm_gem_object *obj,
+			       enum dma_data_direction direction)
+{
+	struct vc4_bo *bo = to_vc4_bo(obj);
+
+	return vc4_wait_for_seqno_ioctl_helper(dev, bo->seqno, ~0ull);
+}
+
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {

@@ -181,6 +181,7 @@ static struct drm_driver vc4_drm_driver = {
 	.gem_prime_vmap = vc4_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = vc4_prime_mmap,
+	.gem_prime_begin_cpu_access = vc4_prime_begin_cpu_access,
 
 	.dumb_create = vc4_dumb_create,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,

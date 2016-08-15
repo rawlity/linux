@@ -426,6 +426,8 @@ int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 void *vc4_prime_vmap(struct drm_gem_object *obj);
+int vc4_prime_begin_cpu_access(struct drm_gem_object *obj,
+			       enum dma_data_direction direction);
 void vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
 int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
