@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <media/videobuf2-vmalloc.h>
 #include <media/videobuf2-dma-contig.h>
@@ -269,11 +270,8 @@ static int queue_setup(struct vb2_queue *vq, const void *parg,
 	*nplanes = 1;
 
 	sizes[0] = size;
-
-	/*
-	 * videobuf2-vmalloc allocator is context-less so no need to set
-	 * alloc_ctxs array.
-	 */
+	/* XXX: Free this */
+	vq->alloc_ctx[0] = vb2_dma_contig_init_ctx(&dev->pdev->dev);
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev, "%s: dev:%p\n",
 		 __func__, dev);
@@ -1906,6 +1904,11 @@ static int __init bm2835_mmal_init(void)
 		if (!dev)
 			return -ENOMEM;
 
+		/* XXX unregister */
+		dev->pdev = platform_device_register_simple("bcm2835-camera",
+							    camera,
+							    NULL, 0);
+
 		dev->camera_num = camera;
 		dev->max_width = resolutions[camera][0];
 		dev->max_height = resolutions[camera][1];
@@ -1944,11 +1947,11 @@ static int __init bm2835_mmal_init(void)
 		q = &dev->capture.vb_vidq;
 		memset(q, 0, sizeof(*q));
 		q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_READ;
+		q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_USERPTR | VB2_READ;
 		q->drv_priv = dev;
 		q->buf_struct_size = sizeof(struct mmal_buffer);
 		q->ops = &bm2835_mmal_video_qops;
-		q->mem_ops = &vb2_vmalloc_memops;
+		q->mem_ops = &vb2_dma_contig_memops;
 		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		ret = vb2_queue_init(q);
 		if (ret < 0)

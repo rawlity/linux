@@ -14,7 +14,7 @@ if VIDEO_BCM2835
 config VIDEO_BCM2835_MMAL
 	tristate "Broadcom BM2835 MMAL camera interface driver"
 	depends on BCM2708_VCHIQ
-	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This is a V4L2 driver for the Broadcom BCM2835 MMAL camera host interface
 
