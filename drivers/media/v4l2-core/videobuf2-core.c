@@ -1253,7 +1253,7 @@ int vb2_core_prepare_buf(struct vb2_queue *q, unsigned int index, void *pb)
 
 	vb = q->bufs[index];
 	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "invalid buffer state %d\n",
+		dprintk(1, "invalid buffer %d state %d\n", vb->index,
 			vb->state);
 		return -EINVAL;
 	}
@@ -1373,7 +1373,7 @@ int vb2_core_qbuf(struct vb2_queue *q, unsigned int index, void *pb)
 		dprintk(1, "buffer still being prepared\n");
 		return -EINVAL;
 	default:
-		dprintk(1, "invalid buffer state %d\n", vb->state);
+		dprintk(1, "invalid buffer %d state %d\n", vb->index, vb->state);
 		return -EINVAL;
 	}
 
