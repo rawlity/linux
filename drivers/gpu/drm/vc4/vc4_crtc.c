@@ -534,6 +534,11 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 	/* Turn on the pixel valve, which will emit the vstart signal. */
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
+
+
+	DRM_INFO("crtc %d enable state:\n", drm_crtc_index(crtc));
+	vc4_hvs_dump_state(dev);
+	vc4_crtc_dump_regs(vc4_crtc);
 }
 
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
@@ -981,6 +986,9 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	platform_set_drvdata(pdev, vc4_crtc);
+
+	DRM_INFO("crtc %d boot state:\n", drm_crtc_index(crtc));
+	vc4_crtc_dump_regs(vc4_crtc);
 
 	return 0;
 

@@ -210,6 +210,9 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
+	DRM_INFO("HVS at boot:\n");
+	vc4_hvs_dump_state(drm);
+
 	vc4->hvs = hvs;
 	return 0;
 }
