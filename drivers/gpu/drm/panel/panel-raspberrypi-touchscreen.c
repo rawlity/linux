@@ -273,6 +273,8 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
 	pr_err("disable\n");
 
+	rpi_touchscreen_i2c_write(ts, REG_PWM, 0);
+
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 	udelay(1);
 
