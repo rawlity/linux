@@ -339,9 +339,6 @@
 			#size-cells = <0>;
 			gpios = <&gpio 28 0
 				 &gpio 29 0>;
-			i2c-gpio,sda-open-drain;
-			i2c-gpio,scl-open-drain;
-			i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 
 			pitouchscreen_bridge: bridge@45 {
 				compatible = "raspberrypi,touchscreen-bridge-i2c";
