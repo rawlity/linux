@@ -320,7 +320,6 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 {
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
 	int i;
-	int lanes = 1;
 
 	pr_err("enable\n");
 
