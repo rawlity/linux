@@ -874,13 +874,17 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		if (dsi->lanes < 2)
 			afec0 |= DSI1_PHY_AFEC0_PD_DLANE1;
 
-		if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO))
-			afec0 |= DSI1_PHY_AFEC0_RESET;
+		afec0 |= DSI1_PHY_AFEC0_RESET;
 
 		dev_info(&dsi->pdev->dev, "Setting afec0 to 0x%08x\n", afec0);
 		DSI_PORT_WRITE(PHY_AFEC0, afec0);
 
 		DSI_PORT_WRITE(PHY_AFEC1, 0);
+
+		/* AFEC reset hold time */
+		mdelay(1);
+
+		DSI_PORT_WRITE(PHY_AFEC0, afec0 & ~DSI1_PHY_AFEC0_RESET);
 	}
 
 	/* How many ns one DSI unit interval is.  Note that the clock
