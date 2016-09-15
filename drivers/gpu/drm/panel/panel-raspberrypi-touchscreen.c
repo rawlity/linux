@@ -494,6 +494,9 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 		break;
 	}
 
+	/* Turn off at boot, so we can cleanly sequence powering on. */
+	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
+
 #if 0
 	ts->backlight =
 		devm_backlight_device_register(dev,
