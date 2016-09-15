@@ -796,12 +796,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		dev_err(dev, "Failed to set pixel clock: %d\n", ret);
 	dev_info(&dsi->pdev->dev, "Tried to set pixel clock to: %d\n", mode->clock * 1000);
 
-	ret = clk_prepare_enable(dsi->pixel_clock);
-	if (ret) {
-		DRM_ERROR("Failed to turn on DSI pixel clock: %d\n", ret);
-		return;
-	}
-
 	hs_clock = clk_get_rate(dsi->pll_phy_clock);
 
 	/* Reset the DSI and all its fifos. */
@@ -990,6 +984,12 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	DSI_PORT_WRITE(PHYC, phyc);
 
+	ret = clk_prepare_enable(dsi->pixel_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on DSI pixel clock: %d\n", ret);
+		return;
+	}
+
 	/* Ungate the block. */
 	if (dsi->port == 0)
 		DSI_PORT_WRITE(CTRL, DSI_PORT_READ(CTRL) | DSI0_CTRL_CTRL0);
@@ -1177,7 +1177,7 @@ static long vc4_dsi_byte_clock_round_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 static unsigned long vc4_dsi_byte_clock_get_rate(struct clk_hw *hw,
-					  unsigned long parent_rate)
+						 unsigned long parent_rate)
 {
 	return parent_rate / 8;
 }
