@@ -170,6 +170,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_dev *vc4 = drm->dev_private;
 	struct vc4_hvs *hvs = NULL;
 	int ret;
+	u32 dispctrl;
 
 	hvs = devm_kzalloc(&pdev->dev, sizeof(*hvs), GFP_KERNEL);
 	if (!hvs)
@@ -210,10 +211,20 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		return ret;
 
+	vc4->hvs = hvs;
+
+	dispctrl = HVS_READ(SCALER_DISPCTRL);
+
+	dispctrl |= SCALER_DISPCTRL_ENABLE;
+
+	dispctrl &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
+	dispctrl |= VC4_SET_FIELD(0, SCALER_DISPCTRL_DSP3_MUX);
+
+	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
+
 	DRM_INFO("HVS at boot:\n");
 	vc4_hvs_dump_state(drm);
 
-	vc4->hvs = hvs;
 	return 0;
 }
 
