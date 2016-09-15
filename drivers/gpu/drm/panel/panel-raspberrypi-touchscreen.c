@@ -475,6 +475,11 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 	}
 
 	ver = rpi_touchscreen_i2c_read(ts, REG_ID);
+	if (ver < 0) {
+		dev_err(dev, "Atmel I2C read failed: %d\n", ver);
+		ver = 0xc3;
+	}
+
 	switch (ver) {
 	case 0xde:
 		ts->atmel_ver = 1;
@@ -484,7 +489,6 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 		break;
 	default:
 		dev_err(dev, "Unknown Atmel firmware revision: 0x%02x\n", ver);
-		ts->atmel_ver = 2;
 		break;
 	}
 
