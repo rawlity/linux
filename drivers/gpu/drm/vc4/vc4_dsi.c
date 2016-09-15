@@ -129,7 +129,7 @@
 # define DSI_DISP_HBP_CTRL		BIT(7)
 # define DSI_DISP0_CHANNEL_MASK		VC4_MASK(6, 5)
 # define DSI_DISP0_CHANNEL_SHIFT	5
-/* Enables and end events for HSYNC/VSYNC, not just start events. */
+/* Enables end events for HSYNC/VSYNC, not just start events. */
 # define DSI_DISP0_ST_END		BIT(4)
 # define DSI_DISP0_PFORMAT_MASK		VC4_MASK(3, 2)
 # define DSI_DISP0_PFORMAT_SHIFT	2
