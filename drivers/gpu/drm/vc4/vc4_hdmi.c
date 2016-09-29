@@ -246,7 +246,7 @@ static struct drm_connector *vc4_hdmi_connector_init(struct drm_device *dev,
 	connector->polled = (DRM_CONNECTOR_POLL_CONNECT |
 			     DRM_CONNECTOR_POLL_DISCONNECT);
 
-	connector->interlace_allowed = 0;
+	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
 	drm_mode_connector_attach_encoder(connector, encoder);
@@ -278,8 +278,8 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	bool debug_dump_regs = false;
 	bool hsync_pos = mode->flags & DRM_MODE_FLAG_PHSYNC;
 	bool vsync_pos = mode->flags & DRM_MODE_FLAG_PVSYNC;
-	u32 vactive = (mode->vdisplay >>
-		       ((mode->flags & DRM_MODE_FLAG_INTERLACE) ? 1 : 0));
+	bool interlaced = mode->flags & DRM_MODE_FLAG_INTERLACE;
+	u32 vactive = mode->vdisplay >> interlaced;
 	u32 verta = (VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
 				   VC4_HDMI_VERTA_VSP) |
 		     VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
@@ -288,6 +288,10 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	u32 vertb = (VC4_SET_FIELD(0, VC4_HDMI_VERTB_VSPO) |
 		     VC4_SET_FIELD(mode->vtotal - mode->vsync_end,
 				   VC4_HDMI_VERTB_VBP));
+	u32 vertb_even = (VC4_SET_FIELD(0, VC4_HDMI_VERTB_VSPO) |
+			  VC4_SET_FIELD(mode->vtotal - mode->vsync_end -
+					interlaced,
+					VC4_HDMI_VERTB_VBP));
 
 	if (debug_dump_regs) {
 		DRM_INFO("HDMI regs before:\n");
@@ -319,7 +323,7 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	HDMI_WRITE(VC4_HDMI_VERTA0, verta);
 	HDMI_WRITE(VC4_HDMI_VERTA1, verta);
 
-	HDMI_WRITE(VC4_HDMI_VERTB0, vertb);
+	HDMI_WRITE(VC4_HDMI_VERTB0, vertb_even);
 	HDMI_WRITE(VC4_HDMI_VERTB1, vertb);
 
 	HD_WRITE(VC4_HD_VID_CTL,

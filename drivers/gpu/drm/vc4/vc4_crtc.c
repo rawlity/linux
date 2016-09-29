@@ -428,13 +428,24 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 			   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
 					 PV_VERTB_VFP) |
 			   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+
+		/* We set up first field even mode for HDMI.  VEC's
+		 * NTSC mode would want first field odd instead, once
+		 * we support it (to do so, set ODD_FIRST and put the
+		 * delay in VSYNCD_EVEN instead).
+		 */
+		CRTC_WRITE(PV_V_CONTROL,
+			   PV_VCONTROL_CONTINUOUS |
+			   PV_VCONTROL_INTERLACE |
+			   VC4_SET_FIELD(mode->htotal / 2,
+					 PV_VCONTROL_ODD_DELAY));
+		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
+	} else {
+		CRTC_WRITE(PV_V_CONTROL, PV_VCONTROL_CONTINUOUS);
 	}
 
 	CRTC_WRITE(PV_HACT_ACT, mode->hdisplay);
 
-	CRTC_WRITE(PV_V_CONTROL,
-		   PV_VCONTROL_CONTINUOUS |
-		   (interlace ? PV_VCONTROL_INTERLACE : 0));
 
 	CRTC_WRITE(PV_CONTROL,
 		   VC4_SET_FIELD(format, PV_CONTROL_FORMAT) |
