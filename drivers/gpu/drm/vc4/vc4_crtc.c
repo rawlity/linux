@@ -451,6 +451,9 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		   VC4_SET_FIELD(format, PV_CONTROL_FORMAT) |
 		   VC4_SET_FIELD(vc4_get_fifo_full_level(format),
 				 PV_CONTROL_FIFO_LEVEL) |
+		   VC4_SET_FIELD(((mode->flags &
+				   DRM_MODE_FLAG_DBLCLK) ? 2 : 1) - 1,
+				 PV_CONTROL_PIXEL_REP) |
 		   PV_CONTROL_CLR_AT_START |
 		   PV_CONTROL_TRIGGER_UNDERFLOW |
 		   PV_CONTROL_WAIT_HSTART |

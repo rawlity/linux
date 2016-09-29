@@ -300,7 +300,8 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 
 	HD_WRITE(VC4_HD_VID_CTL, 0);
 
-	clk_set_rate(vc4->hdmi->pixel_clock, mode->clock * 1000);
+	clk_set_rate(vc4->hdmi->pixel_clock, mode->clock * 1000 *
+		     ((mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1));
 
 	HDMI_WRITE(VC4_HDMI_SCHEDULER_CONTROL,
 		   HDMI_READ(VC4_HDMI_SCHEDULER_CONTROL) |
