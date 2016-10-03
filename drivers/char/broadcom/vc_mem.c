@@ -60,9 +60,8 @@ EXPORT_SYMBOL(mm_vc_mem_size);
 EXPORT_SYMBOL(mm_vc_mem_base);
 
 static uint phys_addr = 0;
-static uint mem_size = 0;
-static uint mem_base = 0;
-
+static uint mem_size = 0x3f000000;
+static uint mem_base = 0x3dc00000;
 
 /****************************************************************************
 *
