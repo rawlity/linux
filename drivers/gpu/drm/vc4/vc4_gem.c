@@ -297,7 +297,7 @@ vc4_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	uint32_t ct0ca, ct1ca;
+	uint32_t ct0ca, ct1ca, qpurqcc;
 	unsigned long irqflags;
 	struct vc4_exec_info *bin_exec, *render_exec;
 
@@ -314,16 +314,21 @@ vc4_hangcheck_elapsed(unsigned long data)
 
 	ct0ca = V3D_READ(V3D_CTNCA(0));
 	ct1ca = V3D_READ(V3D_CTNCA(1));
+	qpurqcc = VC4_GET_FIELD(V3D_READ(V3D_SRQCS),
+				V3D_SRQCS_QPURQCC);
 
 	/* If we've made any progress in execution, rearm the timer
 	 * and wait.
 	 */
 	if ((bin_exec && ct0ca != bin_exec->last_ct0ca) ||
-	    (render_exec && ct1ca != render_exec->last_ct1ca)) {
+	    (render_exec && (ct1ca != render_exec->last_ct1ca ||
+			     qpurqcc != render_exec->last_qpurqcc))) {
 		if (bin_exec)
 			bin_exec->last_ct0ca = ct0ca;
-		if (render_exec)
+		if (render_exec) {
 			render_exec->last_ct1ca = ct1ca;
+			render_exec->last_qpurqcc = qpurqcc;
+		}
 		spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 		vc4_queue_hangcheck(dev);
 		return;
@@ -435,12 +440,12 @@ again:
 
 	vc4_flush_caches(dev);
 
-	/* Either put the job in the binner if it uses the binner, or
-	 * immediately move it to the to-be-rendered queue.
-	 */
 	if (exec->ct0ca != exec->ct0ea) {
 		submit_cl(dev, 0, exec->ct0ca, exec->ct0ea);
 	} else {
+		/* Render-only and user QPU programs get moved to the
+		 * render queue.
+		 */
 		vc4_move_job_to_render(dev, exec);
 		goto again;
 	}
@@ -451,11 +456,21 @@ vc4_submit_next_render_job(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
+	int i;
 
 	if (!exec)
 		return;
 
-	submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
+	if (exec->user_qpu_job_count) {
+		/* XXX: Make sure we're idle. */
+		/* XXX: Set up VPM */
+		for (i = 0; i < exec->user_qpu_job_count; i++) {
+			V3D_WRITE(V3D_SRQUA, exec->user_qpu_job[i].uniforms);
+			V3D_WRITE(V3D_SRQPC, exec->user_qpu_job[i].code);
+		}
+	} else {
+		submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
+	}
 }
 
 void
@@ -499,7 +514,7 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
  * then bump the end address.  That's a change for a later date,
  * though.
  */
-static void
+static uint64_t
 vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -524,6 +539,8 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec)
 	}
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+	return seqno;
 }
 
 /**
@@ -859,6 +876,33 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 	return ret;
 }
 
+static struct vc4_exec_info *
+vc4_exec_alloc(struct drm_device *dev)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_exec_info *exec;
+	int ret;
+
+	exec = kcalloc(1, sizeof(*exec), GFP_KERNEL);
+	if (!exec) {
+		DRM_ERROR("malloc failure on exec struct\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	mutex_lock(&vc4->power_lock);
+	if (vc4->power_refcount++ == 0)
+		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
+	mutex_unlock(&vc4->power_lock);
+	if (ret < 0) {
+		kfree(exec);
+		return ERR_PTR(ret);
+	}
+
+	INIT_LIST_HEAD(&exec->unref_list);
+
+	return exec;
+}
+
 /**
  * Submits a command list to the VC4.
  *
@@ -878,23 +922,11 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	exec = kcalloc(1, sizeof(*exec), GFP_KERNEL);
-	if (!exec) {
-		DRM_ERROR("malloc failure on exec struct\n");
-		return -ENOMEM;
-	}
-
-	mutex_lock(&vc4->power_lock);
-	if (vc4->power_refcount++ == 0)
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-	mutex_unlock(&vc4->power_lock);
-	if (ret < 0) {
-		kfree(exec);
-		return ret;
-	}
+	exec = vc4_exec_alloc(dev);
+	if (IS_ERR(exec))
+		return PTR_ERR(exec);
 
 	exec->args = args;
-	INIT_LIST_HEAD(&exec->unref_list);
 
 	ret = vc4_cl_lookup_bos(dev, file_priv, exec);
 	if (ret)
@@ -918,15 +950,69 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	 */
 	exec->args = NULL;
 
-	vc4_queue_submit(dev, exec);
-
 	/* Return the seqno for our job. */
-	args->seqno = vc4->emit_seqno;
+	args->seqno = vc4_queue_submit(dev, exec);
 
 	return 0;
 
 fail:
 	vc4_complete_exec(vc4->dev, exec);
+
+	return ret;
+}
+
+int
+vc4_firmware_qpu_execute(struct vc4_dev *vc4, u32 num_jobs,
+			 u32 control, u32 noflush, u32 timeout)
+{
+	struct drm_device *dev = vc4->dev;
+	u32 control_paddr;
+	struct vc4_exec_info *exec;
+	struct control_args {
+		u32 uniforms;
+		u32 code;
+	} *control_args;
+	int ret, i;
+	uint64_t seqno;
+
+	control_paddr = control & ~(BIT(31) | BIT(30));
+
+	DRM_INFO("QPU execute nqpu 0x%08x, "
+		 "control 0x%08x (0x%08x), noflush 0x%08x, timeout 0x%08x: ",
+		 num_jobs, control, control_paddr, noflush, timeout);
+
+	if (num_jobs > ARRAY_SIZE(exec->user_qpu_job)) {
+		DRM_ERROR("V3D QPU execution request with too many jobs (%d)\n",
+			  num_jobs);
+		return -EINVAL;
+	}
+
+	exec = vc4_exec_alloc(dev);
+	if (IS_ERR(exec))
+		return PTR_ERR(exec);
+
+	control_args = ioremap(control_paddr, num_jobs * 2 * sizeof(u32));
+	if (!control_args) {
+		vc4_complete_exec(dev, exec);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_jobs; i++) {
+		exec->user_qpu_job[i].code = control_args[i].code;
+		exec->user_qpu_job[i].uniforms = control_args[i].uniforms;
+		DRM_INFO("%08x 0x%08x\n", exec->user_qpu_job[i].code,
+			 exec->user_qpu_job[i].uniforms);
+	}
+	iounmap(control_args);
+
+	exec->user_qpu_job_count = num_jobs;
+
+	seqno = vc4_queue_submit(dev, exec);
+
+	/* The mailbox interface is synchronous, so wait for the job
+	 * we just made to complete.
+	 */
+	ret = vc4_wait_for_seqno(dev, seqno, ~0ull, true);
 
 	return ret;
 }
