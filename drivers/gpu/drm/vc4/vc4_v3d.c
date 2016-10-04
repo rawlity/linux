@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/pm_runtime.h>
+#include <soc/bcm2835/raspberrypi-firmware.h>
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -150,11 +151,8 @@ static void vc4_v3d_init_hw(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	/* Take all the memory that would have been reserved for user
-	 * QPU programs, since we don't have an interface for running
-	 * them, anyway.
-	 */
-	V3D_WRITE(V3D_VPMBASE, 0);
+	/* XXX: Fix the user QPU VPM share at 16 for now. */
+	V3D_WRITE(V3D_VPMBASE, 16);
 }
 
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
@@ -342,6 +340,7 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_v3d *v3d = NULL;
+	struct device_node *firmware_node;
 	int ret;
 
 	v3d = devm_kzalloc(&pdev->dev, sizeof(*v3d), GFP_KERNEL);
@@ -410,6 +409,16 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_set_autosuspend_delay(dev, 40); /* a little over 2 frames. */
 	pm_runtime_enable(dev);
 
+	firmware_node = of_parse_phandle(dev->of_node, "firmware", 0);
+	vc4->firmware = rpi_firmware_get(firmware_node);
+	of_node_put(firmware_node);
+	if (!vc4->firmware) {
+		DRM_DEBUG("Failed to get Raspberry Pi firmware reference.\n");
+		return -EPROBE_DEFER;
+	}
+
+	rpi_firmware_register_vc4(vc4->firmware, vc4, vc4_firmware_qpu_execute);
+
 	return 0;
 }
 
@@ -418,6 +427,8 @@ static void vc4_v3d_unbind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
+
+	rpi_firmware_register_vc4(vc4->firmware, NULL, NULL);
 
 	pm_runtime_disable(dev);
 

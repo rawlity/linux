@@ -317,7 +317,7 @@ struct vc4_exec_info {
 	/* Last current addresses the hardware was processing when the
 	 * hangcheck timer checked on us.
 	 */
-	uint32_t last_ct0ca, last_ct1ca;
+	uint32_t last_ct0ca, last_ct1ca, last_qpurqcc;
 
 	/* Kernel-space copy of the ioctl arguments */
 	struct drm_vc4_submit_cl *args;
@@ -411,6 +411,12 @@ struct vc4_exec_info {
 	void *uniforms_v;
 	uint32_t uniforms_p;
 	uint32_t uniforms_size;
+
+	struct {
+		u32 code;
+		u32 uniforms;
+	} user_qpu_job[16];
+	u32 user_qpu_job_count;
 };
 
 static inline struct vc4_exec_info *
@@ -594,6 +600,10 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 		       void (*func)(struct vc4_seqno_cb *cb));
 int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv);
+
+int
+vc4_firmware_qpu_execute(struct vc4_dev *dev, u32 num_qpu,
+			 u32 control, u32 noflush, u32 timeout);
 
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_hdmi_driver;
