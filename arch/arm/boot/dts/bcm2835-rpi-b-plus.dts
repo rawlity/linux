@@ -23,6 +23,50 @@
 };
 
 &gpio {
+	/*
+	 * Taken from Raspberry-Pi-B-Plus-V1.2-Schematics.pdf
+	 * RPI-BPLUS sheet 1
+	 *
+	 * Legend:
+	 * "NC" = not connected (no rail from the SoC)
+	 * "[FOO]" = pin is muxed for peripheral FOO (not GPIO)
+	 * "" = No idea
+	 * "FOO" = GPIO line named "FOO" on the schematic
+	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
+	 */
+	gpio-line-names = "[ID_SD]", "[ID_SC]", "[SDA1]", "[SCL1]",
+			  "GPIO_GCLK", "GPIO5", "GPIO6",
+			  "[SPI_CE1_N]", "[SPI_CE0_N]", "[SPI_MISO]",
+			  "[SPI_MOSI]", "[SPI_SCLK]",
+			  "GPIO12", "GPIO13",
+			  "[TXD0]", "[RXD0]", /* Serial port */
+			  "GPIO16",
+			  "GPIO_GEN0", "GPIO_GEN1",
+			  "GPIO19", "GPIO20", "GPIO21",
+			  "GPIO_GEN3", "GPIO_GEN4",
+			  "GPIO_GEN5", "GPIO_GEN6",
+			  "GPIO26",
+			  "GPIO_GEN2",
+			  /*
+			   * FIXME: all above is routed to J8, is it better
+			   * to name the GPIO lines after the J8 placement?
+			   * No certain info on the lines below, assume the
+			   * same placement as for RPI B?
+			   */
+			  "GPIO_GEN7", "GPIO_GEN8",
+			  "GPIO_GEN9", "GPIO_GEN10",
+			  /* GPIOs 32 thru 39 unused */
+			  "NC", "NC", "NC", "NC", "NC", "NC", "NC", "NC",
+			  "[PWM0_OUT]",
+			  /* GPIOs 41 thru 44 unused */
+			  "NC", "NC", "NC", "NC",
+			  "[PWM1_OUT]",
+			  /* FIXME: GPIO or device? */
+			  "HDMI_HPD_P", "SD_CARD_DET",
+			  /* Used by SD Card */
+			  "[SD_CLK_R]", "[SD_CMD_R]", "[SD_DATA0_R]",
+			  "[SD_DATA1_R]", "[SD_DATA2_R]", "[SD_DATA3_R]";
+
 	pinctrl-0 = <&gpioout &alt0 &i2s_alt0>;
 
 	/* I2S interface */
