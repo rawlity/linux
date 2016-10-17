@@ -27,35 +27,69 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "[SDA0]", "[SCL0]", "[SDA1]", "[SCL1]",
-			  "[GPIO_GCLK]", "[CAM_CLK]", "LAN_RUN",
-			  "[SPI_CE1_N]", "[SPI_CE0_N]", "[SPI_MISO]",
-			  "[SPI_MOSI]", "[SPI_SCLK]",
-			  "NC", "NC", /* GPIO 12 & 13 unused */
-			  "[TXD0]", "[RXD0]", /* Serial port */
+	gpio-line-names = "[SDA0]",
+			  "[SCL0]",
+			  "[SDA1]",
+			  "[SCL1]",
+			  "[GPIO_GCLK]",
+			  "[CAM_CLK]",
+			  "LAN_RUN",
+			  "[SPI_CE1_N]",
+			  "[SPI_CE0_N]",
+			  "[SPI_MISO]",
+			  "[SPI_MOSI]",
+			  "[SPI_SCLK]",
+			  "NC",
+			  "NC", /* GPIO 12 & 13 unused */
+			  /* Serial port */
+			  "[TXD0]",
+			  "[RXD0]",
 			  "STATUS_LED_N",
 			  /*
 			   * FIXME: could be named after placement on the P1
 			   * pin header.
 			   */
-			  "GPIO_GEN0", "GPIO_GEN1",
-			  "NC", "NC", /* GPIO 19 & 20 unused */
-			  "GPIO_GEN2", "GPIO_GEN3", "GPIO_GEN4",
-			  "GPIO_GEN5", "GPIO_GEN6",
+			  "GPIO_GEN0",
+			  "GPIO_GEN1",
+			  "NC",
+			  "NC", /* GPIO 19 & 20 unused */
+			  "GPIO_GEN2",
+			  "GPIO_GEN3",
+			  "GPIO_GEN4",
+			  "GPIO_GEN5",
+			  "GPIO_GEN6",
 			  "NC", /* GPIO 26 unused */
 			  "CAM_GPIO",
 			  /* Binary number representing build/revision */
-			  "CONFIG0", "CONFIG1", "CONFIG2", "CONFIG3",
+			  "CONFIG0",
+			  "CONFIG1",
+			  "CONFIG2",
+			  "CONFIG3",
 			  /* GPIOs 32 thru 39 unused */
-			  "NC", "NC", "NC", "NC", "NC", "NC", "NC", "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
 			  "[PWM0_OUT]",
 			  /* GPIOs 41 thru 44 unused */
-			  "NC", "NC", "NC", "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
 			  "[PWM1_OUT]",
-			  "HDMI_HPD_P", "SD_CARD_DET",
+			  "HDMI_HPD_P",
+			  "SD_CARD_DET",
 			  /* Used by SD Card */
-			  "[SD_CLK_R]", "[SD_CMD_R]", "[SD_DATA0_R]",
-			  "[SD_DATA1_R]", "[SD_DATA2_R]", "[SD_DATA3_R]";
+			  "[SD_CLK_R]",
+			  "[SD_CMD_R]",
+			  "[SD_DATA0_R]",
+			  "[SD_DATA1_R]",
+			  "[SD_DATA2_R]",
+			  "[SD_DATA3_R]";
 
 	pinctrl-0 = <&gpioout &alt0>;
 };

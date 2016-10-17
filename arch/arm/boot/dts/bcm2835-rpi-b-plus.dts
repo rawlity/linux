@@ -34,17 +34,33 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "[ID_SD]", "[ID_SC]", "[SDA1]", "[SCL1]",
-			  "[GPIO_GCLK]", "GPIO5", "GPIO6",
-			  "[SPI_CE1_N]", "[SPI_CE0_N]", "[SPI_MISO]",
-			  "[SPI_MOSI]", "[SPI_SCLK]",
-			  "GPIO12", "GPIO13",
-			  "[TXD0]", "[RXD0]", /* Serial port */
+	gpio-line-names = "[ID_SD]",
+			  "[ID_SC]",
+			  "[SDA1]",
+			  "[SCL1]",
+			  "[GPIO_GCLK]",
+			  "GPIO5",
+			  "GPIO6",
+			  "[SPI_CE1_N]",
+			  "[SPI_CE0_N]",
+			  "[SPI_MISO]",
+			  "[SPI_MOSI]",
+			  "[SPI_SCLK]",
+			  "GPIO12",
+			  "GPIO13",
+			  /* Serial port */
+			  "[TXD0]",
+			  "[RXD0]",
 			  "GPIO16",
-			  "GPIO_GEN0", "GPIO_GEN1",
-			  "GPIO19", "GPIO20", "GPIO21",
-			  "GPIO_GEN3", "GPIO_GEN4",
-			  "GPIO_GEN5", "GPIO_GEN6",
+			  "GPIO_GEN0",
+			  "GPIO_GEN1",
+			  "GPIO19",
+			  "GPIO20",
+			  "GPIO21",
+			  "GPIO_GEN3",
+			  "GPIO_GEN4",
+			  "GPIO_GEN5",
+			  "GPIO_GEN6",
 			  "GPIO26",
 			  "GPIO_GEN2",
 			  /*
@@ -53,18 +69,35 @@
 			   * No certain info on the lines below, assume the
 			   * same placement as for RPI B?
 			   */
-			  "GPIO_GEN7", "GPIO_GEN8",
-			  "GPIO_GEN9", "GPIO_GEN10",
+			  "GPIO_GEN7",
+			  "GPIO_GEN8",
+			  "GPIO_GEN9",
+			  "GPIO_GEN10",
 			  /* GPIOs 32 thru 39 unused */
-			  "NC", "NC", "NC", "NC", "NC", "NC", "NC", "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
 			  "[PWM0_OUT]",
 			  /* GPIOs 41 thru 44 unused */
-			  "NC", "NC", "NC", "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
 			  "[PWM1_OUT]",
-			  "HDMI_HPD_N", "SD_CARD_DET",
+			  "HDMI_HPD_N",
+			  "SD_CARD_DET",
 			  /* Used by SD Card */
-			  "[SD_CLK_R]", "[SD_CMD_R]", "[SD_DATA0_R]",
-			  "[SD_DATA1_R]", "[SD_DATA2_R]", "[SD_DATA3_R]";
+			  "[SD_CLK_R]",
+			  "[SD_CMD_R]",
+			  "[SD_DATA0_R]",
+			  "[SD_DATA1_R]",
+			  "[SD_DATA2_R]",
+			  "[SD_DATA3_R]";
 
 	pinctrl-0 = <&gpioout &alt0 &i2s_alt0>;
 
