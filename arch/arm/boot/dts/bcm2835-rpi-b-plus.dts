@@ -30,7 +30,6 @@
 	 * Legend:
 	 * "NC" = not connected (no rail from the SoC)
 	 * "[FOO]" = pin is muxed for peripheral FOO (not GPIO)
-	 * "" = No idea
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
