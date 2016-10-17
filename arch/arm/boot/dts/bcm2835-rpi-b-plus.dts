@@ -61,8 +61,7 @@
 			  /* GPIOs 41 thru 44 unused */
 			  "NC", "NC", "NC", "NC",
 			  "[PWM1_OUT]",
-			  /* FIXME: GPIO or device? */
-			  "HDMI_HPD_P", "SD_CARD_DET",
+			  "HDMI_HPD_N", "SD_CARD_DET",
 			  /* Used by SD Card */
 			  "[SD_CLK_R]", "[SD_CMD_R]", "[SD_DATA0_R]",
 			  "[SD_DATA1_R]", "[SD_DATA2_R]", "[SD_DATA3_R]";
