@@ -27,38 +27,34 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "[SDA0]",
-			  "[SCL0]",
+	gpio-line-names = "[P3_SDA0]",
+			  "[P5_SCL0]",
 			  "[SDA1]",
 			  "[SCL1]",
-			  "[GPIO_GCLK]",
+			  "[P7_GPIO_GCLK]",
 			  "[CAM_CLK]",
 			  "LAN_RUN",
-			  "[SPI_CE1_N]",
-			  "[SPI_CE0_N]",
-			  "[SPI_MISO]",
-			  "[SPI_MOSI]",
-			  "[SPI_SCLK]",
-			  "NC",
-			  "NC", /* GPIO 12 & 13 unused */
+			  "[P26_SPI_CE1_N]",
+			  "[P24_SPI_CE0_N]",
+			  "[P21_SPI_MISO]",
+			  "[P19_SPI_MOSI]",
+			  "[P23_SPI_SCLK]",
+			  "NC", /* GPIO12 */
+			  "NC", /* GPIO13 */
 			  /* Serial port */
-			  "[TXD0]",
-			  "[RXD0]",
+			  "[P8_TXD0]",
+			  "[P10_RXD0]",
 			  "STATUS_LED_N",
-			  /*
-			   * FIXME: could be named after placement on the P1
-			   * pin header.
-			   */
-			  "GPIO_GEN0",
-			  "GPIO_GEN1",
-			  "NC",
-			  "NC", /* GPIO 19 & 20 unused */
-			  "GPIO_GEN2",
-			  "GPIO_GEN3",
-			  "GPIO_GEN4",
-			  "GPIO_GEN5",
-			  "GPIO_GEN6",
-			  "NC", /* GPIO 26 unused */
+			  "P11_GPIO17",
+			  "P12_GPIO18",
+			  "NC", /* GPIO19 */
+			  "NC", /* GPIO20 */
+			  "P13_GPIO21",
+			  "P15_GPIO22",
+			  "P16_GPIO23",
+			  "P18_GPIO24",
+			  "P22_GPIO25",
+			  "NC", /* GPIO26 */
 			  "CAM_GPIO",
 			  /* Binary number representing build/revision */
 			  "CONFIG0",

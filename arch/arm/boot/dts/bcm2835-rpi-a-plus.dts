@@ -34,55 +34,53 @@
 	 */
 	gpio-line-names = "[SDA0]",
 			  "[SCL0]",
-			  "[SDA1]",
-			  "[SCL1]",
-			  "[GPIO_GCLK]",
-			  "[CAM_CLK]",
-			  "LAN_RUN",
-			  "[SPI_CE1_N]",
-			  "[SPI_CE0_N]",
-			  "[SPI_MISO]",
-			  "[SPI_MOSI]",
-			  "[SPI_SCLK]",
-			  "NC",
-			  "NC", /* GPIO 12 & 13 unused */
+			  "[P3_SDA1]",
+			  "[P5_SCL1]",
+			  "[P7_GPIO_GCLK]",
+			  "P29_GPIO5",
+			  "P31_GPIO6",
+			  "[P26_SPI_CE1_N]",
+			  "[P24_SPI_CE0_N]",
+			  "[P21_SPI_MISO]",
+			  "[P19_SPI_MOSI]",
+			  "[P23_SPI_SCLK]",
+			  "P32_GPIO12",
+			  "P33_GPIO13",
 			  /* Serial port */
-			  "[TXD0]",
-			  "[RXD0]",
-			  "STATUS_LED_N",
-			  "GPIO_GEN0",
-			  "GPIO_GEN1",
-			  "NC",
-			  "NC", /* GPIO 19 & 20 unused */
-			  "CAM_GPIO",
-			  "GPIO_GEN3",
-			  "GPIO_GEN4",
-			  "GPIO_GEN5",
-			  "GPIO_GEN6",
-			  "NC", /* GPIO 26 unused */
-			  "GPIO_GEN2",
-			  "GPIO_GEN7",
-			  "GPIO_GEN8",
-			  "GPIO_GEN9",
-			  "GPIO_GEN10",
-			  /* GPIOs 32 thru 39 unused */
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "[PWM0_OUT]",
-			  /* GPIOs 41 thru 44 unused */
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "[PWM1_OUT]",
+			  "[P8_TXD0]",
+			  "[P10_RXD0]",
+			  "P36_GPIO16",
+			  "P11_GPIO17",
+			  "P12_GPIO18",
+			  "P35_GPIO19",
+			  "P38_GPIO20",
+			  "P40_GPIO21",
+			  "P15_GPIO22",
+			  "P16_GPIO23",
+			  "P18_GPIO24",
+			  "P22_GPIO25",
+			  "P37_GPIO26",
+			  "P13_GPIO27",
+			  "[SDA0]",
+			  "[SCL0]",
+			  "NC", /* GPIO30 */
+			  "NC", /* GPIO31 */
+			  "NC", /* GPIO32 */
+			  "NC", /* GPIO33 */
+			  "NC", /* GPIO34 */
+			  "PWR_LOW_N", /* GPIO35 */
+			  "NC", /* GPIO36 */
+			  "NC", /* GPIO37 */
+			  "NC", /* GPIO38 */
+			  "NC", /* GPIO39 */
+			  "[PWM0_OUT]", /* GPIO40 */
+			  "CAM_GPIO0", /* GPIO41 */
+			  "NC", /* GPIO42 */
+			  "NC", /* GPIO43 */
+			  "NC", /* GPIO44 */
+			  "[PWM1_OUT]", /* GPIO45 */
 			  "HDMI_HPD_N",
-			  "SD_CARD_DET",
+			  "STATUS_LED",
 			  /* Used by SD Card */
 			  "[SD_CLK_R]",
 			  "[SD_CMD_R]",

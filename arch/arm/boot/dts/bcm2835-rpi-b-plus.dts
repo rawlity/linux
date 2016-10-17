@@ -36,61 +36,53 @@
 	 */
 	gpio-line-names = "[ID_SD]",
 			  "[ID_SC]",
-			  "[SDA1]",
-			  "[SCL1]",
-			  "[GPIO_GCLK]",
-			  "GPIO5",
-			  "GPIO6",
-			  "[SPI_CE1_N]",
-			  "[SPI_CE0_N]",
-			  "[SPI_MISO]",
-			  "[SPI_MOSI]",
-			  "[SPI_SCLK]",
-			  "GPIO12",
-			  "GPIO13",
+			  "[P3_SDA1]",
+			  "[P5_SCL1]",
+			  "[P7_GPIO_GCLK]",
+			  "P29_GPIO5",
+			  "P31_GPIO6",
+			  "[P26_SPI_CE1_N]",
+			  "[P24_SPI_CE0_N]",
+			  "[P21_SPI_MISO]",
+			  "[P19_SPI_MOSI]",
+			  "[P23_SPI_SCLK]",
+			  "P23_GPIO12",
+			  "P33_GPIO13",
 			  /* Serial port */
-			  "[TXD0]",
-			  "[RXD0]",
-			  "GPIO16",
-			  "GPIO_GEN0",
-			  "GPIO_GEN1",
-			  "GPIO19",
-			  "GPIO20",
-			  "GPIO21",
-			  "GPIO_GEN3",
-			  "GPIO_GEN4",
-			  "GPIO_GEN5",
-			  "GPIO_GEN6",
-			  "GPIO26",
-			  "GPIO_GEN2",
-			  /*
-			   * FIXME: all above is routed to J8, is it better
-			   * to name the GPIO lines after the J8 placement?
-			   * No certain info on the lines below, assume the
-			   * same placement as for RPI B?
-			   */
-			  "GPIO_GEN7",
-			  "GPIO_GEN8",
-			  "GPIO_GEN9",
-			  "GPIO_GEN10",
-			  /* GPIOs 32 thru 39 unused */
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "[PWM0_OUT]",
-			  /* GPIOs 41 thru 44 unused */
-			  "NC",
-			  "NC",
-			  "NC",
-			  "NC",
-			  "[PWM1_OUT]",
+			  "[P8_TXD0]",
+			  "[P10_RXD0]",
+			  "P36_GPIO16",
+			  "P11_GPIO17",
+			  "P12_GPIO18",
+			  "P35_GPIO19",
+			  "P38_GPIO20",
+			  "P40_GPIO21",
+			  "P15_GPIO22",
+			  "P16_GPIO23",
+			  "P18_GPIO24",
+			  "P22_GPIO25",
+			  "P37_GPIO26",
+			  "P13_GPIO27",
+			  "[SDA0]",
+			  "[SCL0]",
+			  "NC", /* GPIO30 */
+			  "LAN_RUN", /* GPIO31 */
+			  "CAM_GPIO1", /* GPIO32 */
+			  "NC", /* GPIO33 */
+			  "NC", /* GPIO34 */
+			  "PWR_LOW_N", /* GPIO35 */
+			  "NC", /* GPIO36 */
+			  "NC", /* GPIO37 */
+			  "NC", /* GPIO38 */
+			  "NC", /* GPIO39 */
+			  "[PWM0_OUT]", /* GPIO40 */
+			  "CAM_GPIO0", /* GPIO41 */
+			  "NC", /* GPIO42 */
+			  "NC", /* GPIO43 */
+			  "ETHCLK", /* GPIO44 */
+			  "[PWM1_OUT]", /* GPIO45 */
 			  "HDMI_HPD_N",
-			  "SD_CARD_DET",
+			  "STATUS_LED",
 			  /* Used by SD Card */
 			  "[SD_CLK_R]",
 			  "[SD_CMD_R]",
