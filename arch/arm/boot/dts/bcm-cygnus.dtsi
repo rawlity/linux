@@ -142,6 +142,18 @@
 			interrupts = <0>;
 		};
 
+		mdio: mdio@18002000 {
+			compatible = "brcm,iproc-mdio";
+			reg = <0x18002000 0x8>;
+			#size-cells = <1>;
+			#address-cells = <0>;
+
+			gphy0: eth-gphy@0 {
+				reg = <0>;
+				max-speed = <1000>;
+			};
+		};
+
 		i2c0: i2c@18008000 {
 			compatible = "brcm,cygnus-iproc-i2c", "brcm,iproc-i2c";
 			reg = <0x18008000 0x100>;
@@ -293,6 +305,17 @@
 			clocks = <&axi81_clk>;
 			clock-frequency = <100000000>;
 			status = "disabled";
+		};
+
+		enet: enet@18042000 {
+			compatible = "brcm,amac";
+			reg = <0x18042000 0x1000>,
+			      <0x18110400 0x1000>;
+			reg-names = "amac_base", "idm_base";
+			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+			phy-mode = "mii";
+			max-speed = <1000>;
+			phy-handle = <&gphy0>;
 		};
 
 		nand: nand@18046000 {
