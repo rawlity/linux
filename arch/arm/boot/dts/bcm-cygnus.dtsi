@@ -310,7 +310,7 @@
 		enet: enet@18042000 {
 			compatible = "brcm,amac";
 			reg = <0x18042000 0x1000>,
-			      <0x18110400 0x1000>;
+			      <0x18110000 0x1000>;
 			reg-names = "amac_base", "idm_base";
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 			phy-mode = "mii";
