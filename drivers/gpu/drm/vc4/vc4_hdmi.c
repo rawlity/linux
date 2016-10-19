@@ -33,6 +33,9 @@
 #include "linux/i2c.h"
 #include "linux/of_gpio.h"
 #include "linux/of_platform.h"
+#include "linux/rational.h"
+#include "sound/hdmi-codec.h"
+#include "sound/bcm2835-hdmi.h"
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -42,6 +45,8 @@ struct vc4_hdmi {
 
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
+
+	struct hdmi_codec_params audio_params;
 
 	struct i2c_adapter *ddc;
 	void __iomem *hdmicore_regs;
@@ -98,6 +103,10 @@ static const struct {
 	HDMI_REG(VC4_HDMI_SW_RESET_CONTROL),
 	HDMI_REG(VC4_HDMI_HOTPLUG_INT),
 	HDMI_REG(VC4_HDMI_HOTPLUG),
+	HDMI_REG(VC4_HDMI_MAI_CHANNEL_MAP),
+	HDMI_REG(VC4_HDMI_MAI_CONFIG),
+	HDMI_REG(VC4_HDMI_MAI_FORMAT),
+	HDMI_REG(VC4_HDMI_AUDIO_PACKET_CONFIG),
 	HDMI_REG(VC4_HDMI_RAM_PACKET_CONFIG),
 	HDMI_REG(VC4_HDMI_HORZA),
 	HDMI_REG(VC4_HDMI_HORZB),
@@ -116,6 +125,9 @@ static const struct {
 } hd_regs[] = {
 	HDMI_REG(VC4_HD_M_CTL),
 	HDMI_REG(VC4_HD_MAI_CTL),
+	HDMI_REG(VC4_HD_MAI_THR),
+	HDMI_REG(VC4_HD_MAI_FMT),
+	HDMI_REG(VC4_HD_MAI_SMP),
 	HDMI_REG(VC4_HD_VID_CTL),
 	HDMI_REG(VC4_HD_CSC_CTL),
 	HDMI_REG(VC4_HD_FRAME_COUNT),
@@ -215,6 +227,7 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	drm_mode_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
+	drm_edid_to_eld(connector, edid);
 
 	return ret;
 }
@@ -381,6 +394,24 @@ static void vc4_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 	}
 
 	frame.spd.sdi = HDMI_SPD_SDI_PC;
+
+	vc4_hdmi_write_infoframe(encoder, &frame);
+}
+
+static void vc4_hdmi_set_audio_infoframe(struct drm_encoder *encoder)
+{
+	struct drm_device *drm = encoder->dev;
+	struct vc4_dev *vc4 = drm->dev_private;
+	struct vc4_hdmi *hdmi = vc4->hdmi;
+	union hdmi_infoframe frame;
+	int ret;
+
+	ret = hdmi_audio_infoframe_init(&frame.audio);
+
+	frame.audio.coding_type = HDMI_AUDIO_CODING_TYPE_STREAM;
+	frame.audio.sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM;
+	frame.audio.sample_size = HDMI_AUDIO_SAMPLE_SIZE_STREAM;
+	frame.audio.channels = hdmi->audio_params.cea.channels;
 
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }
@@ -591,6 +622,220 @@ static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
 	.enable = vc4_hdmi_encoder_enable,
 };
 
+/* HDMI audio codec callbacks */
+
+static int vc4_hdmi_audio_hw_params(struct device *dev, void *data,
+				    struct hdmi_codec_daifmt *daifmt,
+				    struct hdmi_codec_params *params)
+{
+	struct vc4_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dev_info(dev, "%s: %u Hz, %d bit, %d channels\n", __func__,
+		 params->sample_rate, params->sample_width,
+		 params->cea.channels);
+
+	if (daifmt->fmt != HDMI_SPDIF) {
+		dev_err(dev, "%s: Invalid DAI format %d\n", __func__,
+			daifmt->fmt);
+		return -EINVAL;
+	}
+
+	memcpy(&hdmi->audio_params, params, sizeof(*params));
+
+	/* XXX: Restart? */
+
+	return 0;
+}
+
+static void vc4_hdmi_audio_set_mai_clock(struct vc4_hdmi *hdmi)
+{
+	struct drm_device *drm = hdmi->encoder->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	u32 hsm_clock = clk_get_rate(hdmi->hsm_clock);
+	u32 samplerate = 0 /* XXX */;
+	unsigned long n, m;
+
+	/* XXX: n/m right way around? */
+	rational_best_approximation(hsm_clock, samplerate,
+				    VC4_HD_MAI_SMP_N_MASK >>
+				    VC4_HD_MAI_SMP_N_SHIFT,
+				    (VC4_HD_MAI_SMP_M_MASK >>
+				     VC4_HD_MAI_SMP_M_SHIFT) + 1,
+				    &n, &m);
+
+	HD_WRITE(VC4_HD_MAI_SMP,
+		 VC4_SET_FIELD(n, VC4_HD_MAI_SMP_N) |
+		 VC4_SET_FIELD(m + 1, VC4_HD_MAI_SMP_M));
+}
+
+static void vc4_hdmi_set_n_cts(struct vc4_hdmi *hdmi)
+{
+	struct drm_encoder *encoder = hdmi->encoder;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_device *drm = encoder->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	const struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	u32 samplerate = hdmi->audio_params.sample_rate;
+	u32 n, cts;
+	u64 tmp;
+
+	n = 128 * samplerate / 1000;
+	tmp = (u64)(mode->clock * 1000) * n;
+	do_div(tmp, 128 * samplerate);
+	cts = tmp;
+
+	DRM_INFO("Setting N/CTS to %d/%d\n", n, cts);
+
+	HDMI_WRITE(VC4_HDMI_CRP_CFG,
+		   VC4_HDMI_CRP_CFG_EXTERNAL_CTS_EN |
+		   VC4_SET_FIELD(n, VC4_HDMI_CRP_CFG_N));
+
+	/* We could get slightly more accurate clocks in some cases by
+	 * providing a CTS_1 value.  The two CTS values are alternated
+	 * between based on the period fields
+	 */
+	HDMI_WRITE(VC4_HDMI_CTS_0, cts);
+	HDMI_WRITE(VC4_HDMI_CTS_1, cts);
+}
+
+static int vc4_hdmi_audio_startup(struct device *dev, void *data)
+{
+	struct vc4_hdmi *hdmi = dev_get_drvdata(dev);
+	struct drm_encoder *encoder = hdmi->encoder;
+	struct drm_device *drm = encoder->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	u32 audio_packet_config, channel_mask;
+	u32 channel_map, channel_map_next, i;
+
+	dev_info(dev, "%s\n", __func__);
+
+	HD_WRITE(VC4_HD_MAI_CTL,
+		 VC4_HD_MAI_CTL_RESET |
+		 VC4_HD_MAI_CTL_FLUSH);
+
+	vc4_hdmi_audio_set_mai_clock(hdmi);
+
+	audio_packet_config =
+		VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_SAMPLE_FLAT |
+		VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_INACTIVE_CHANNELS |
+		VC4_SET_FIELD(0xf, VC4_HDMI_AUDIO_PACKET_B_FRAME_IDENTIFIER);
+
+	/* XXX: Better CEA channel mask handling */
+	channel_mask = BIT(0) | BIT(1);
+	audio_packet_config |= VC4_SET_FIELD(channel_mask,
+					     VC4_HDMI_AUDIO_PACKET_CEA_MASK);
+
+	/* Set the MAI threshold.  This logic mimics the firmware's. */
+	if (hdmi->audio_params.sample_rate > 96000) {
+		HD_WRITE(VC4_HD_MAI_THR,
+			 VC4_SET_FIELD(0x12, VC4_HD_MAI_THR_DREQHIGH) |
+			 VC4_SET_FIELD(0x12, VC4_HD_MAI_THR_DREQLOW));
+	} else if (hdmi->audio_params.sample_rate > 48000) {
+		HD_WRITE(VC4_HD_MAI_THR,
+			 VC4_SET_FIELD(0x14, VC4_HD_MAI_THR_DREQHIGH) |
+			 VC4_SET_FIELD(0x12, VC4_HD_MAI_THR_DREQLOW));
+	} else {
+		HD_WRITE(VC4_HD_MAI_THR,
+			 VC4_SET_FIELD(0x1, VC4_HD_MAI_THR_PANICHIGH) |
+			 VC4_SET_FIELD(0x1, VC4_HD_MAI_THR_PANICLOW) |
+			 VC4_SET_FIELD(0x1, VC4_HD_MAI_THR_DREQHIGH) |
+			 VC4_SET_FIELD(0x1, VC4_HD_MAI_THR_DREQLOW));
+	}
+
+	HDMI_WRITE(VC4_HDMI_MAI_CONFIG, VC4_HDMI_MAI_CONFIG_BIT_REVERSE);
+
+	channel_map = 0;
+	channel_map_next = 0;
+	for (i = 0; i < 8; i++) {
+		if (channel_mask & BIT(0))
+			channel_map |= i << (3 * channel_map_next++);
+	}
+	HDMI_WRITE(VC4_HDMI_MAI_CHANNEL_MAP, channel_map);
+
+	HDMI_WRITE(VC4_HDMI_MAI_CONFIG, VC4_HDMI_MAI_CONFIG_BIT_REVERSE);
+	HDMI_WRITE(VC4_HDMI_AUDIO_PACKET_CONFIG, audio_packet_config);
+
+	vc4_hdmi_set_n_cts(hdmi);
+
+	HD_WRITE(VC4_HD_MAI_CTL,
+		 VC4_SET_FIELD(2 /* XXX */, VC4_HD_MAI_CTL_CHNUM) |
+		 VC4_HD_MAI_CTL_ENABLE);
+
+	vc4_hdmi_set_audio_infoframe(encoder);
+
+	return 0;
+}
+
+static void vc4_hdmi_audio_shutdown(struct device *dev, void *data)
+{
+	struct vc4_hdmi *hdmi = dev_get_drvdata(dev);
+	struct drm_encoder *encoder = hdmi->encoder;
+	struct drm_device *drm = encoder->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	int ret;
+
+	dev_info(dev, "%s\n", __func__);
+
+	ret = vc4_hdmi_stop_packet(encoder, HDMI_INFOFRAME_TYPE_AUDIO);
+	if (ret)
+		dev_err(dev, "Failed to stop audio infoframe: %d\n", ret);
+
+	HD_WRITE(VC4_HD_MAI_CTL, VC4_HD_MAI_CTL_FLUSH | VC4_HD_MAI_CTL_ENABLE);
+	HD_WRITE(VC4_HD_MAI_CTL, VC4_HD_MAI_CTL_RESET);
+	HD_WRITE(VC4_HD_MAI_CTL, VC4_HD_MAI_CTL_ERRORF);
+}
+
+static int
+vc4_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
+{
+	dev_dbg(dev, "%s(%d)\n", __func__, enable);
+
+	/* XXX: What to do here? */
+
+	return 0;
+}
+
+static int vc4_hdmi_audio_get_eld(struct device *dev, void *data,
+				  uint8_t *buf, size_t len)
+{
+	struct vc4_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "%s\n", __func__);
+
+	memcpy(buf, hdmi->connector->eld,
+	       min(sizeof(hdmi->connector->eld), len));
+
+	return 0;
+}
+
+static const struct hdmi_codec_ops vc4_hdmi_audio_codec_ops = {
+	.hw_params = vc4_hdmi_audio_hw_params,
+	.audio_startup = vc4_hdmi_audio_startup,
+	.audio_shutdown = vc4_hdmi_audio_shutdown,
+	.digital_mute = vc4_hdmi_audio_digital_mute,
+	.get_eld = vc4_hdmi_audio_get_eld,
+};
+
+/*
+ * Registers the HDMI audio codec driver as a child of our device.
+ */
+static void vc4_hdmi_register_audio_driver(struct device *dev)
+{
+	struct platform_device *pdev;
+	const struct hdmi_codec_pdata codec_data = {
+		.ops = &vc4_hdmi_audio_codec_ops,
+		.spdif = 1,
+	};
+
+	pdev = platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
+					     PLATFORM_DEVID_AUTO, &codec_data,
+					     sizeof(codec_data));
+	if (IS_ERR(pdev))
+		return;
+
+	DRM_INFO("%s driver bound to HDMI\n", HDMI_CODEC_DRV_NAME);
+}
+
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -605,6 +850,7 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
+	dev_set_drvdata(dev, hdmi);
 
 	vc4_hdmi_encoder = devm_kzalloc(dev, sizeof(*vc4_hdmi_encoder),
 					GFP_KERNEL);
@@ -721,6 +967,8 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 		ret = PTR_ERR(hdmi->connector);
 		goto err_destroy_encoder;
 	}
+
+	vc4_hdmi_register_audio_driver(dev);
 
 	return 0;
 
