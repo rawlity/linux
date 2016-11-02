@@ -217,7 +217,7 @@ static int hdmi_codec_set_fmt(struct snd_soc_dai *dai,
 
 	dev_dbg(dai->dev, "%s()\n", __func__);
 
-	if (dai->id == DAI_ID_SPDIF) {
+	if (1 || dai->id == DAI_ID_SPDIF) {
 		cf.fmt = HDMI_SPDIF;
 	} else {
 		switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
