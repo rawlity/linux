@@ -634,7 +634,7 @@ static int vc4_hdmi_audio_hw_params(struct device *dev, void *data,
 		 params->sample_rate, params->sample_width,
 		 params->cea.channels);
 
-	if (daifmt->fmt != HDMI_SPDIF) {
+	if (0 && daifmt->fmt != HDMI_SPDIF) {
 		dev_err(dev, "%s: Invalid DAI format %d\n", __func__,
 			daifmt->fmt);
 		return -EINVAL;
