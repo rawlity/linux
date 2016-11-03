@@ -273,6 +273,7 @@
 		};
 
 		hdmi: hdmi@7e902000 {
+			#sound-dai-cells = <0>;
 			compatible = "brcm,bcm2835-hdmi";
 			reg = <0x7e902000 0x600>,
 			      <0x7e808000 0x100>;
@@ -282,6 +283,15 @@
 				 <&clocks BCM2835_CLOCK_HSM>;
 			clock-names = "pixel", "hdmi";
 			status = "disabled";
+		};
+
+		hdmi_audio: hdmiaudio@7e808020 {
+			#sound-dai-cells = <0>;
+			compatible = "brcm,bcm2835-hdmi-audio";
+			reg = <0x7e808020 0x4>;
+
+			dmas = <&dma 17>;
+			dma-names = "tx";
 		};
 
 		usb: usb@7e980000 {
@@ -325,6 +335,19 @@
 			#clock-cells = <0>;
 			clock-output-names = "otg";
 			clock-frequency = <480000000>;
+		};
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "HDMI Audio";
+
+		simple-audio-card,cpu {
+			sound-dai = <&hdmi_audio>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&hdmi>;
 		};
 	};
 };
