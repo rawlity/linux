@@ -804,6 +804,12 @@ validate_gl_shader_rec(struct drm_device *dev,
 		return -EINVAL;
 	}
 
+	if (to_vc4_bo(&bo[1]->base)->validated_shader->is_threaded ||
+		to_vc4_bo(&bo[2]->base)->validated_shader->is_threaded) {
+		DRM_ERROR("cs and vs cannot be threaded\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < shader_reloc_count; i++) {
 		struct vc4_validated_shader_info *validated_shader;
 		uint32_t o = shader_reloc_offsets[i];
