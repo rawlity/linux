@@ -87,12 +87,12 @@ struct vc4_shader_validation_state {
 	 */
 	bool needs_uniform_address_for_loop;
 
-	/* set when we find a instruction which violates the criterion for a 
-	* threaded shader. These are:
-	* 	- only write the lower half of the register space
-	* 	- last thread switch signaled at the end
-	* So track the usage of the thread switches and the register usage.
-	*/
+	/* Set when we find an instruction which violates the criterion for a
+	 * threaded shader. These are:
+	 * 	- only write the lower half of the register space
+	 * 	- last thread switch signaled at the end
+	 * So track the usage of the thread switches and the register usage.
+	 */
 	bool all_registers_used;
 	bool thread_switch_present;
 	bool last_thread_switch_present;
@@ -131,10 +131,12 @@ raddr_add_a_to_live_reg_index(uint64_t inst)
 		return ~0;
 }
 
-static bool live_reg_is_upper_half(uint32_t lri){
+static bool live_reg_is_upper_half(uint32_t lri)
+{
 	return	(lri >=16 && lri < 32) ||
-		(lri >=32+16 && lri < 32+32);
+		(lri >=32 + 16 && lri < 32 + 32);
 }
+
 static bool
 is_tmu_submit(uint32_t waddr)
 {
@@ -617,9 +619,10 @@ check_instruction_reads(struct vc4_validated_shader_info *validated_shader,
 			return false;
 		}
 	}
-	if ( (raddr_a >= 16 && raddr_a < 32)||
-		(raddr_b >= 16 && raddr_b < 32 && sig != QPU_SIG_SMALL_IMM))
+	if ((raddr_a >= 16 && raddr_a < 32) ||
+	    (raddr_b >= 16 && raddr_b < 32 && sig != QPU_SIG_SMALL_IMM)) {
 		validation_state->all_registers_used = true;
+	}
 
 
 	return true;
@@ -860,7 +863,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 #endif
 			}
 
-			if (sig == QPU_SIG_LAST_THREAD_SWITCH){
+			if (sig == QPU_SIG_LAST_THREAD_SWITCH) {
 				if (validation_state.last_thread_switch_present) {
 					DRM_ERROR("Last thread switch present twice\n");
 					goto fail;
@@ -869,7 +872,7 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 			}
 
 			if (sig == QPU_SIG_THREAD_SWITCH ||
-				sig == QPU_SIG_LAST_THREAD_SWITCH) {
+			    sig == QPU_SIG_LAST_THREAD_SWITCH) {
 				if (ip < last_thread_switch_ip + 3) {
 					DRM_ERROR("Thread switch too soon after last "
 						" switch at ip %d\n", ip);
@@ -892,14 +895,14 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 			if (!check_branch(inst, validated_shader,
 					  &validation_state, ip))
 				goto fail;
-			
+
 			if (ip < last_thread_switch_ip + 3) {
 				DRM_ERROR("Branch in thread switch at ip %d, "
-					"instruction %llx\n", ip, inst);
+					  "instruction %llx\n", ip, inst);
 				goto fail;
 			}
 
-			if (validation_state.last_thread_switch_present){
+			if (validation_state.last_thread_switch_present) {
 				DRM_ERROR("Last thread switch occured "
 					  "in front of a branch, cannot "
 					  "determine if single and last call "
@@ -927,30 +930,30 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 		goto fail;
 	}
 #ifdef WORKAROUND_HW1632
-	if (validation_state.thread_switch_present && 
-		!validation_state.last_thread_switch_present){
+	if (validation_state.thread_switch_present &&
+	    !validation_state.last_thread_switch_present) {
 		DRM_ERROR("Shader switches threads, but does not use "
 			  "last thread switch\n");
 		goto fail;
 	}
 #endif
-	
 	/* Might corrupt other thread */
 	if ((validation_state.last_thread_switch_present ||
 		validation_state.thread_switch_present) &&
-		validation_state.all_registers_used){
+		validation_state.all_registers_used) {
 		DRM_ERROR("Shader uses threading, but uses the upper "
 			  "half of the registers, too\n");
 		goto fail;
 	}
-	
+
 	/* Enabling threading without at least one thread switch locks the qpu */
 #ifdef WORKAROUND_HW1632
-	validated_shader->is_threaded = validation_state.last_thread_switch_present;
+	validated_shader->is_threaded =
+		validation_state.last_thread_switch_present;
 #else
-	validated_shader->is_threaded = 
-		!validation_state.all_registers_used && 
-		(validation_state.last_thread_switch_present || 
+	validated_shader->is_threaded =
+		!validation_state.all_registers_used &&
+		(validation_state.last_thread_switch_present ||
 			validation_state.thread_switch_present);
 #endif
 

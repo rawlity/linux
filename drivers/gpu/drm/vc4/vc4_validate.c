@@ -798,14 +798,14 @@ validate_gl_shader_rec(struct drm_device *dev,
 			return -EINVAL;
 	}
 
-	if ((!(*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD))^
-		to_vc4_bo(&bo[0]->base)->validated_shader->is_threaded) {
-		DRM_ERROR("Thread mode of cl and fs do not match\n");
+	if (((*(uint16_t *)pkt_u & VC4_SHADER_FLAG_FS_SINGLE_THREAD) == 0) !=
+	    to_vc4_bo(&bo[0]->base)->validated_shader->is_threaded) {
+		DRM_ERROR("Thread mode of CL and FS do not match\n");
 		return -EINVAL;
 	}
 
 	if (to_vc4_bo(&bo[1]->base)->validated_shader->is_threaded ||
-		to_vc4_bo(&bo[2]->base)->validated_shader->is_threaded) {
+	    to_vc4_bo(&bo[2]->base)->validated_shader->is_threaded) {
 		DRM_ERROR("cs and vs cannot be threaded\n");
 		return -EINVAL;
 	}
