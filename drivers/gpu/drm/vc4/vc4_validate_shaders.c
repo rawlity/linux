@@ -39,9 +39,6 @@
 #include "vc4_drv.h"
 #include "vc4_qpu_defines.h"
 
-/* Use on a BCM2708A0 silicone for stricter validation of the shader */
-/*#define WORKAROUND_HW1632 */
-
 #define LIVE_REG_COUNT (32 + 32 + 4)
 
 struct vc4_shader_validation_state {
@@ -94,8 +91,6 @@ struct vc4_shader_validation_state {
 	 * So track the usage of the thread switches and the register usage.
 	 */
 	bool all_registers_used;
-	bool thread_switch_present;
-	bool last_thread_switch_present;
 };
 
 static uint32_t
@@ -852,27 +847,10 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 				shader_end_ip = ip;
 			}
 
-			if (sig == QPU_SIG_THREAD_SWITCH) {
-				validation_state.thread_switch_present = true;
-#ifdef WORKAROUND_HW1632
-				if (validation_state.last_thread_switch_present){
-					DRM_ERROR("Thread switch after last "
-						  "thread switch present at ip %d\n", ip);
-					goto fail;
-				}
-#endif
-			}
-
-			if (sig == QPU_SIG_LAST_THREAD_SWITCH) {
-				if (validation_state.last_thread_switch_present) {
-					DRM_ERROR("Last thread switch present twice\n");
-					goto fail;
-				}
-				validation_state.last_thread_switch_present = true;
-			}
-
 			if (sig == QPU_SIG_THREAD_SWITCH ||
 			    sig == QPU_SIG_LAST_THREAD_SWITCH) {
+				validated_shader->is_threaded = true;
+
 				if (ip < last_thread_switch_ip + 3) {
 					DRM_ERROR("Thread switch too soon after last "
 						" switch at ip %d\n", ip);
@@ -902,13 +880,6 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 				goto fail;
 			}
 
-			if (validation_state.last_thread_switch_present) {
-				DRM_ERROR("Last thread switch occured "
-					  "in front of a branch, cannot "
-					  "determine if single and last call "
-					  "to a thread switch\n");
-				goto fail;
-			}
 			break;
 		default:
 			DRM_ERROR("Unsupported QPU signal %d at "
@@ -929,33 +900,14 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 			  shader_obj->base.size);
 		goto fail;
 	}
-#ifdef WORKAROUND_HW1632
-	if (validation_state.thread_switch_present &&
-	    !validation_state.last_thread_switch_present) {
-		DRM_ERROR("Shader switches threads, but does not use "
-			  "last thread switch\n");
-		goto fail;
-	}
-#endif
+
 	/* Might corrupt other thread */
-	if ((validation_state.last_thread_switch_present ||
-		validation_state.thread_switch_present) &&
-		validation_state.all_registers_used) {
+	if (validated_shader->is_threaded &&
+	    validation_state.all_registers_used) {
 		DRM_ERROR("Shader uses threading, but uses the upper "
 			  "half of the registers, too\n");
 		goto fail;
 	}
-
-	/* Enabling threading without at least one thread switch locks the qpu */
-#ifdef WORKAROUND_HW1632
-	validated_shader->is_threaded =
-		validation_state.last_thread_switch_present;
-#else
-	validated_shader->is_threaded =
-		!validation_state.all_registers_used &&
-		(validation_state.last_thread_switch_present ||
-			validation_state.thread_switch_present);
-#endif
 
 	/* If we did a backwards branch and we haven't emitted a uniforms
 	 * reset since then, we still need the uniforms stream to have the
