@@ -875,8 +875,8 @@ vc4_validate_shader(struct drm_gem_cma_object *shader_obj)
 				goto fail;
 
 			if (ip < last_thread_switch_ip + 3) {
-				DRM_ERROR("Branch in thread switch at ip %d, "
-					  "instruction %llx\n", ip, inst);
+				DRM_ERROR("Branch in thread switch at ip %d",
+					  ip);
 				goto fail;
 			}
 
