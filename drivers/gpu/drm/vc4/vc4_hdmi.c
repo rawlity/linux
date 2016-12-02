@@ -108,6 +108,9 @@ static const struct {
 	HDMI_REG(VC4_HDMI_MAI_FORMAT),
 	HDMI_REG(VC4_HDMI_AUDIO_PACKET_CONFIG),
 	HDMI_REG(VC4_HDMI_RAM_PACKET_CONFIG),
+	HDMI_REG(VC4_HDMI_CRP_CFG),
+	HDMI_REG(VC4_HDMI_CTS_0),
+	HDMI_REG(VC4_HDMI_CTS_1),
 	HDMI_REG(VC4_HDMI_HORZA),
 	HDMI_REG(VC4_HDMI_HORZB),
 	HDMI_REG(VC4_HDMI_FIFO_CTL),
@@ -117,6 +120,7 @@ static const struct {
 	HDMI_REG(VC4_HDMI_VERTB0),
 	HDMI_REG(VC4_HDMI_VERTB1),
 	HDMI_REG(VC4_HDMI_TX_PHY_RESET_CTL),
+	HDMI_REG(VC4_HDMI_GCP_1),
 };
 
 static const struct {
@@ -398,24 +402,6 @@ static void vc4_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }
 
-static void vc4_hdmi_set_audio_infoframe(struct drm_encoder *encoder)
-{
-	struct drm_device *drm = encoder->dev;
-	struct vc4_dev *vc4 = drm->dev_private;
-	struct vc4_hdmi *hdmi = vc4->hdmi;
-	union hdmi_infoframe frame;
-	int ret;
-
-	ret = hdmi_audio_infoframe_init(&frame.audio);
-
-	frame.audio.coding_type = HDMI_AUDIO_CODING_TYPE_STREAM;
-	frame.audio.sample_frequency = HDMI_AUDIO_SAMPLE_FREQUENCY_STREAM;
-	frame.audio.sample_size = HDMI_AUDIO_SAMPLE_SIZE_STREAM;
-	frame.audio.channels = hdmi->audio_params.cea.channels;
-
-	vc4_hdmi_write_infoframe(encoder, &frame);
-}
-
 static void vc4_hdmi_set_infoframes(struct drm_encoder *encoder)
 {
 	vc4_hdmi_set_avi_infoframe(encoder);
@@ -622,45 +608,19 @@ static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
 	.enable = vc4_hdmi_encoder_enable,
 };
 
-/* HDMI audio codec callbacks */
-
-static int vc4_hdmi_audio_hw_params(struct device *dev, void *data,
-				    struct hdmi_codec_daifmt *daifmt,
-				    struct hdmi_codec_params *params)
-{
-	struct vc4_hdmi *hdmi = dev_get_drvdata(dev);
-
-	dev_info(dev, "%s: %u Hz, %d bit, %d channels\n", __func__,
-		 params->sample_rate, params->sample_width,
-		 params->cea.channels);
-
-	if (0 && daifmt->fmt != HDMI_SPDIF) {
-		dev_err(dev, "%s: Invalid DAI format %d\n", __func__,
-			daifmt->fmt);
-		return -EINVAL;
-	}
-
-	memcpy(&hdmi->audio_params, params, sizeof(*params));
-
-	/* XXX: Restart? */
-
-	return 0;
-}
-
 static void vc4_hdmi_audio_set_mai_clock(struct vc4_hdmi *hdmi)
 {
 	struct drm_device *drm = hdmi->encoder->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	u32 hsm_clock = clk_get_rate(hdmi->hsm_clock);
-	u32 samplerate = 0 /* XXX */;
 	unsigned long n, m;
 
 	/* XXX: n/m right way around? */
-	rational_best_approximation(hsm_clock, samplerate,
+	rational_best_approximation(hsm_clock, hdmi->audio_params.sample_rate,
 				    VC4_HD_MAI_SMP_N_MASK >>
 				    VC4_HD_MAI_SMP_N_SHIFT,
 				    (VC4_HD_MAI_SMP_M_MASK >>
-				     VC4_HD_MAI_SMP_M_SHIFT) + 1,
+				     VC4_HD_MAI_SMP_M_SHIFT) - 1,
 				    &n, &m);
 
 	HD_WRITE(VC4_HD_MAI_SMP,
@@ -707,7 +667,8 @@ static int vc4_hdmi_audio_startup(struct device *dev, void *data)
 	u32 audio_packet_config, channel_mask;
 	u32 channel_map, channel_map_next, i;
 
-	dev_info(dev, "%s\n", __func__);
+	if (!hdmi->audio_params.sample_rate)
+		return 0;
 
 	HD_WRITE(VC4_HD_MAI_CTL,
 		 VC4_HD_MAI_CTL_RESET |
@@ -742,26 +703,32 @@ static int vc4_hdmi_audio_startup(struct device *dev, void *data)
 			 VC4_SET_FIELD(0x1, VC4_HD_MAI_THR_DREQLOW));
 	}
 
-	HDMI_WRITE(VC4_HDMI_MAI_CONFIG, VC4_HDMI_MAI_CONFIG_BIT_REVERSE);
+	HDMI_WRITE(VC4_HDMI_MAI_CONFIG,
+		   VC4_HDMI_MAI_CONFIG_BIT_REVERSE |
+		   VC4_SET_FIELD(channel_mask, VC4_HDMI_MAI_CHANNEL_MASK));
 
 	channel_map = 0;
 	channel_map_next = 0;
 	for (i = 0; i < 8; i++) {
-		if (channel_mask & BIT(0))
+		if (channel_mask & BIT(i))
 			channel_map |= i << (3 * channel_map_next++);
 	}
 	HDMI_WRITE(VC4_HDMI_MAI_CHANNEL_MAP, channel_map);
 
-	HDMI_WRITE(VC4_HDMI_MAI_CONFIG, VC4_HDMI_MAI_CONFIG_BIT_REVERSE);
 	HDMI_WRITE(VC4_HDMI_AUDIO_PACKET_CONFIG, audio_packet_config);
 
 	vc4_hdmi_set_n_cts(hdmi);
 
 	HD_WRITE(VC4_HD_MAI_CTL,
 		 VC4_SET_FIELD(2 /* XXX */, VC4_HD_MAI_CTL_CHNUM) |
-		 VC4_HD_MAI_CTL_ENABLE);
+		 VC4_HD_MAI_CTL_ENABLE |
+		 /* Clear error status bits */
+		 VC4_HD_MAI_CTL_DLATE |
+		 VC4_HD_MAI_CTL_ERRORE |
+		 VC4_HD_MAI_CTL_ERRORF);
 
-	vc4_hdmi_set_audio_infoframe(encoder);
+	vc4_hdmi_write_infoframe(encoder,
+				 (union hdmi_infoframe *)&hdmi->audio_params.cea);
 
 	return 0;
 }
@@ -773,8 +740,6 @@ static void vc4_hdmi_audio_shutdown(struct device *dev, void *data)
 	struct drm_device *drm = encoder->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	int ret;
-
-	dev_info(dev, "%s\n", __func__);
 
 	ret = vc4_hdmi_stop_packet(encoder, HDMI_INFOFRAME_TYPE_AUDIO);
 	if (ret)
@@ -788,9 +753,53 @@ static void vc4_hdmi_audio_shutdown(struct device *dev, void *data)
 static int
 vc4_hdmi_audio_digital_mute(struct device *dev, void *data, bool enable)
 {
-	dev_dbg(dev, "%s(%d)\n", __func__, enable);
+	struct vc4_hdmi *hdmi = dev_get_drvdata(dev);
+	struct drm_encoder *encoder = hdmi->encoder;
+	struct drm_device *drm = encoder->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	u32 subpacket_low = enable ? BIT(0) : BIT(4);
+	u32 packet_id = 0;
+	int i;
 
-	/* XXX: What to do here? */
+	vc4_hdmi_stop_packet(encoder, packet_id);
+
+	HDMI_WRITE(VC4_HDMI_GCP_0, 0x3);
+	for (i = 0; i <= 4; i++) {
+		HDMI_WRITE(VC4_HDMI_GCP_1 + 8 * i + 0, subpacket_low);
+		HDMI_WRITE(VC4_HDMI_GCP_1 + 8 * i + 4, 0);
+	}
+
+	HDMI_WRITE(VC4_HDMI_RAM_PACKET_CONFIG,
+		   HDMI_READ(VC4_HDMI_RAM_PACKET_CONFIG) | BIT(packet_id));
+
+	return 0;
+}
+
+/* HDMI audio codec callbacks */
+
+static int vc4_hdmi_audio_hw_params(struct device *dev, void *data,
+				    struct hdmi_codec_daifmt *daifmt,
+				    struct hdmi_codec_params *params)
+{
+	struct vc4_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dev_info(dev, "%s: %u Hz, %d bit, %d channels\n", __func__,
+		 params->sample_rate, params->sample_width,
+		 params->channels);
+
+	if (/* XXX */ 0 && daifmt->fmt != HDMI_SPDIF) {
+		dev_err(dev, "%s: Invalid DAI format %d\n", __func__,
+			daifmt->fmt);
+		return -EINVAL;
+	}
+
+	memcpy(&hdmi->audio_params, params, sizeof(*params));
+
+	/* Restart the streaming with the new params, since hw_params
+	 * comes in after startup.
+	 */
+	vc4_hdmi_audio_shutdown(dev, data);
+	vc4_hdmi_audio_startup(dev, data);
 
 	return 0;
 }

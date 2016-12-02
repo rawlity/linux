@@ -448,6 +448,8 @@
 #define VC4_HDMI_MAI_CONFIG			0x094
 # define VC4_HDMI_MAI_CONFIG_FORMAT_REVERSE		BIT(27)
 # define VC4_HDMI_MAI_CONFIG_BIT_REVERSE		BIT(26)
+# define VC4_HDMI_MAI_CHANNEL_MASK_MASK			VC4_MASK(15, 0)
+# define VC4_HDMI_MAI_CHANNEL_MASK_SHIFT		0
 
 /* Last received format word on the MAI bus. */
 #define VC4_HDMI_MAI_FORMAT			0x098
@@ -556,6 +558,7 @@
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
 #define VC4_HDMI_GCP_0				0x400
+#define VC4_HDMI_GCP_1				0x404
 #define VC4_HDMI_PACKET_STRIDE			0x24
 
 #define VC4_HD_M_CTL				0x00c
@@ -586,6 +589,7 @@
 # define VC4_HD_MAI_CTL_ERRORE			BIT(2)
 /* Overflow error status bit, write 1 to clear. */
 # define VC4_HD_MAI_CTL_ERRORF			BIT(1)
+/* Single-shot reset bit.  Read value is undefined. */
 # define VC4_HD_MAI_CTL_RESET			BIT(0)
 
 #define VC4_HD_MAI_THR				0x018
