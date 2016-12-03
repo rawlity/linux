@@ -607,6 +607,37 @@ static void vc4_dsi_dump_regs(struct vc4_dsi *dsi)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
+int vc4_dsi1_debugfs_regs(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *drm = node->minor->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	int dsi_index = (uintptr_t)node->info_ent->data;
+	struct vc4_dsi *dsi = (dsi_index == 1 ? vc4->dsi1 : NULL);
+	int i;
+
+	if (!dsi)
+		return 0;
+
+	if (dsi->port == 0) {
+		for (i = 0; i < ARRAY_SIZE(dsi0_regs); i++) {
+			seq_printf(m, "0x%04x (%s): 0x%08x\n",
+				 dsi0_regs[i].reg, dsi0_regs[i].name,
+				 DSI_READ(dsi0_regs[i].reg));
+		}
+	} else {
+		for (i = 0; i < ARRAY_SIZE(dsi1_regs); i++) {
+			seq_printf(m, "0x%04x (%s): 0x%08x\n",
+				 dsi1_regs[i].reg, dsi1_regs[i].name,
+				 DSI_READ(dsi1_regs[i].reg));
+		}
+	}
+
+	return 0;
+}
+#endif
+
 static enum drm_connector_status
 vc4_dsi_connector_detect(struct drm_connector *connector, bool force)
 {

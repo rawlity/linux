@@ -468,7 +468,7 @@ int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_dsi.c */
 extern struct platform_driver vc4_dsi_driver;
-int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused);
+int vc4_dsi1_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_gem.c */
 void vc4_gem_init(struct drm_device *dev);
