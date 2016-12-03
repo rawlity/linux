@@ -794,7 +794,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	uint32_t ui_ns;
 	/* Minimum LP state duration in escape clock cycles. */
 	uint32_t lpx = dsi_esc_timing(60);
-	uint32_t phyc;
 	int ret;
 
 	pr_err("DSI enabling\n");
@@ -817,25 +816,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 			dev_err(&dsi->pdev->dev, "Failed to set phy clock: %d\n", ret);
 		dev_info(&dsi->pdev->dev, "Tried to set clock to: %d\n", 2000000000 / 3);
 	}
-
-	ret = clk_prepare_enable(dsi->escape_clock);
-	if (ret) {
-		DRM_ERROR("Failed to turn on DSI escape clock: %d\n", ret);
-		return;
-	}
-
-	ret = clk_prepare_enable(dsi->pll_phy_clock);
-	if (ret) {
-		DRM_ERROR("Failed to turn on DSI PLL: %d\n", ret);
-		return;
-	}
-
-	ret = clk_set_rate(dsi->pixel_clock, mode->clock * 1000);
-	if (ret)
-		dev_err(dev, "Failed to set pixel clock: %d\n", ret);
-	dev_info(&dsi->pdev->dev, "Tried to set pixel clock to: %d\n", mode->clock * 1000);
-
-	hs_clock = clk_get_rate(dsi->pll_phy_clock);
 
 	/* Reset the DSI and all its fifos. */
 	if (dsi->port == 0) {
@@ -926,6 +906,31 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		DSI_PORT_WRITE(PHY_AFEC0, afec0 & ~DSI1_PHY_AFEC0_RESET);
 	}
 
+	ret = clk_prepare_enable(dsi->escape_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on DSI escape clock: %d\n", ret);
+		return;
+	}
+
+	ret = clk_prepare_enable(dsi->pll_phy_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on DSI PLL: %d\n", ret);
+		return;
+	}
+
+	hs_clock = clk_get_rate(dsi->pll_phy_clock);
+
+	ret = clk_set_rate(dsi->pixel_clock, mode->clock * 1000);
+	if (ret)
+		dev_err(dev, "Failed to set pixel clock: %d\n", ret);
+	dev_info(&dsi->pdev->dev, "Tried to set pixel clock to: %d\n", mode->clock * 1000);
+
+	ret = clk_prepare_enable(dsi->pixel_clock);
+	if (ret) {
+		DRM_ERROR("Failed to turn on DSI pixel clock: %d\n", ret);
+		return;
+	}
+
 	/* How many ns one DSI unit interval is.  Note that the clock
 	 * is DDR, so there's an extra divide by 2.
 	 */
@@ -980,12 +985,15 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	/* Define EOT PKT in EOT reg. */
 
-	phyc = (DSI_PHYC_DLANE0_ENABLE |
-		(dsi->lanes >= 2 ? DSI_PHYC_DLANE1_ENABLE : 0) |
-		(dsi->lanes >= 3 ? DSI_PHYC_DLANE2_ENABLE : 0) |
-		(dsi->lanes >= 4 ? DSI_PHYC_DLANE3_ENABLE : 0) |
-		VC4_SET_FIELD(lpx, DSI_PHYC_ESC_CLK_LPDT) |
-		DSI_PHYC_CLANE_ENABLE);
+	DSI_PORT_WRITE(PHYC,
+		       DSI_PHYC_DLANE0_ENABLE |
+		       (dsi->lanes >= 2 ? DSI_PHYC_DLANE1_ENABLE : 0) |
+		       (dsi->lanes >= 3 ? DSI_PHYC_DLANE2_ENABLE : 0) |
+		       (dsi->lanes >= 4 ? DSI_PHYC_DLANE3_ENABLE : 0) |
+		       DSI_PHYC_CLANE_ENABLE |
+		       ((dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) ?
+			0 : DSI_PHYC_HS_CLK_CONTINUOUS) |
+		       VC4_SET_FIELD(lpx, DSI_PHYC_ESC_CLK_LPDT));
 
 	DSI_PORT_WRITE(CTRL,
 		       DSI_PORT_READ(CTRL) |
@@ -1021,17 +1029,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		       VC4_SET_FIELD(DSI_DISP1_PFORMAT_32BIT_LE,
 				     DSI_DISP1_PFORMAT) |
 		       DSI_DISP1_ENABLE);
-
-	if (!(dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS))
-		phyc |= DSI_PHYC_HS_CLK_CONTINUOUS;
-
-	DSI_PORT_WRITE(PHYC, phyc);
-
-	ret = clk_prepare_enable(dsi->pixel_clock);
-	if (ret) {
-		DRM_ERROR("Failed to turn on DSI pixel clock: %d\n", ret);
-		return;
-	}
 
 	/* Ungate the block. */
 	if (dsi->port == 0)
