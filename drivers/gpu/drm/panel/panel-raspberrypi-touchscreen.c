@@ -328,11 +328,6 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	if (ts->enabled)
 		return 0;
 
-	/* Turn on the backklight. */
-	rpi_touchscreen_i2c_write(ts, REG_PWM, 255);
-
-	rpi_touchscreen_i2c_write(ts, REG_PORTA, 4); /* rotation state */
-
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 1);
 	/* Wait for nPWRDWN to go low to indicate poweron is done. */
 	for (i = 0; i < 100; i++) {
@@ -357,6 +352,11 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	rpi_touchscreen_write(ts, PPI_STARTPPI, 0x01);
 	rpi_touchscreen_write(ts, DSI_STARTDSI, 0x01);
 	msleep(100);
+
+	/* Turn on the backklight. */
+	rpi_touchscreen_i2c_write(ts, REG_PWM, 255);
+
+	rpi_touchscreen_i2c_write(ts, REG_PORTA, 4); /* rotation state */
 
 	if (ts->backlight) {
 		ts->backlight->props.power = FB_BLANK_UNBLANK;
