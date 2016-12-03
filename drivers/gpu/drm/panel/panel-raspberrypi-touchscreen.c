@@ -552,7 +552,10 @@ static int rpi_touchscreen_dsi_remove(struct mipi_dsi_device *dsi)
 
 static void rpi_touchscreen_dsi_shutdown(struct mipi_dsi_device *dsi)
 {
-	/* XXX: poweroff */
+	struct device *dev = &dsi->dev;
+	struct rpi_touchscreen *ts = dev_get_drvdata(dev);
+
+	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 }
 
 static const struct of_device_id rpi_touchscreen_of_match[] = {
