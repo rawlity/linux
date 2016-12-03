@@ -998,7 +998,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	/* Bus turnaround timeout */
 	DSI_PORT_WRITE(TA_TO_CNT, 100000);
 	/* Display reset sequence timeout */
-	DSI_PORT_WRITE(TA_TO_CNT, 100000);
+	DSI_PORT_WRITE(PR_TO_CNT, 100000);
 
 	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		DSI_PORT_WRITE(DISP0_CTRL,
