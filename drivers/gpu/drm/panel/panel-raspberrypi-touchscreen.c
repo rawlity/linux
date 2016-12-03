@@ -413,7 +413,7 @@ static int rpi_touchscreen_backlight_update(struct backlight_device *bl)
 	    bl->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
 		brightness = 0;
 
-	rpi_touchscreen_i2c_write(ts, REG_PWM, brightness);
+	// XXX rpi_touchscreen_i2c_write(ts, REG_PWM, brightness);
 
 	return 0;
 }
