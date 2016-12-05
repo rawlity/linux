@@ -1155,6 +1155,14 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 		pkth |= VC4_SET_FIELD(cmd_fifo_len, DSI_TXPKT1H_BC_CMDFIFO);
 	}
 
+	if (msg->rx_len) {
+		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_CMD_CTRL_RX,
+				      DSI_TXPKT1C_CMD_CTRL);
+	} else {
+		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_CMD_CTRL_TX,
+				      DSI_TXPKT1C_CMD_CTRL);
+	}
+
 	dev_info(&dsi->pdev->dev, "FIFO setup: %d, %d\n",
 		 cmd_fifo_len, pix_fifo_len);
 
@@ -1188,19 +1196,24 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 				      DSI_TXPKT1C_DISPLAY_NO);
 	}
 
-	/* Enable interrupts for the transfer completion. */
+	/* Enable the appropriate interrupt for the transfer completion. */
 	dsi->xfer_result = 0;
 	reinit_completion(&dsi->xfer_completion);
 	DSI_PORT_WRITE(INT_STAT, DSI1_INT_TXPKT1_DONE);
-	DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
-				DSI1_INT_TXPKT1_DONE));
+	if (msg->rx_len) {
+		DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
+					DSI1_INT_PHY_DIR_RTF));
+	} else {
+		DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
+					DSI1_INT_TXPKT1_DONE));
+	}
 
 	/* Send the packet. */
 	DSI_PORT_WRITE(TXPKT1H, pkth);
 	DSI_PORT_WRITE(TXPKT1C, pktc);
 
 	if (!wait_for_completion_timeout(&dsi->xfer_completion,
-					 msecs_to_jiffies(100))) {
+					 msecs_to_jiffies(1000))) {
 		dev_err(&dsi->pdev->dev, "transfer interrupt wait timeout");
 		dev_err(&dsi->pdev->dev, "instat: 0x%08x\n",
 			DSI_PORT_READ(INT_STAT));
@@ -1211,8 +1224,54 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 
 	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
 
-	DRM_INFO("DSI TRANSFER: %d\n", ret);
+	if (ret)
+		goto reset_fifo_and_return;
 
+	if (ret == 0 && msg->rx_len) {
+		u32 rxpkt1h = DSI_PORT_READ(RXPKT1H);
+		u8 *msg_rx = msg->rx_buf;
+
+		if (rxpkt1h & DSI_RXPKT1H_PKT_TYPE_LONG) {
+			u32 rxlen = VC4_GET_FIELD(rxpkt1h, DSI_RXPKT1H_BC_PARAM);
+
+			if (rxlen != msg->rx_len) {
+				DRM_ERROR("DSI returned %db, expecting %db\n",
+					  rxlen, msg->rx_len);
+				ret = -ENXIO;
+				goto reset_fifo_and_return;
+			}
+
+			for (i = 0; i < msg->rx_len; i++)
+				msg_rx[i] = DSI_READ(DSI1_RXPKT_FIFO);
+		} else {
+			/* XXX: AWER */
+
+			msg_rx[0] = VC4_GET_FIELD(rxpkt1h,
+						  DSI_RXPKT1H_SHORT_0);
+			if (msg->rx_len > 1) {
+				msg_rx[1] = VC4_GET_FIELD(rxpkt1h,
+							  DSI_RXPKT1H_SHORT_1);
+			}
+		}
+	}
+
+	return ret;
+
+reset_fifo_and_return:
+	DRM_ERROR("DSI TRANSFER failed, resetting: %d\n", ret);
+
+	DSI_PORT_WRITE(TXPKT1C, DSI_PORT_READ(TXPKT1C) & ~DSI_TXPKT1C_CMD_EN);
+	udelay(1);
+	if (dsi->port == 0) {
+		DSI_PORT_WRITE(CTRL,
+			       DSI_PORT_READ(CTRL) | DSI0_CTRL_RESET_FIFOS);
+	} else {
+		DSI_PORT_WRITE(CTRL,
+			       DSI_PORT_READ(CTRL) | DSI1_CTRL_RESET_FIFOS);
+	}
+
+	DSI_PORT_WRITE(TXPKT1C, 0);
+	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
 	return ret;
 }
 
@@ -1349,7 +1408,7 @@ static irqreturn_t vc4_dsi_irq_handler(int irq, void *data)
 	dsi_handle_error(dsi, &ret, stat,
 			 DSI1_INT_PR_TO, "peripheral reset timeout");
 
-	if (stat & DSI1_INT_TXPKT1_DONE) {
+	if (stat & (DSI1_INT_TXPKT1_DONE | DSI1_INT_PHY_DIR_RTF)) {
 		complete(&dsi->xfer_completion);
 		ret = IRQ_HANDLED;
 	} else if (stat & DSI1_INT_HSTX_TO) {
