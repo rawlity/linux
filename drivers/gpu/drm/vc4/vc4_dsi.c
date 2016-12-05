@@ -828,6 +828,69 @@ static const struct drm_encoder_funcs vc4_dsi_encoder_funcs = {
 	.destroy = vc4_dsi_encoder_destroy,
 };
 
+static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
+{
+	u32 afec0 = DSI_PORT_READ(PHY_AFEC0);
+
+	if (latch)
+		afec0 |= DSI_PORT_BIT(PHY_AFEC0_LATCH_ULPS);
+	else
+		afec0 &= ~DSI_PORT_BIT(PHY_AFEC0_LATCH_ULPS);
+
+	DSI_PORT_WRITE(PHY_AFEC0, afec0);
+}
+
+/* Enters or exits Ultra Low Power State. */
+static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
+{
+	u32 phyc_ulps = (DSI_PORT_BIT(PHYC_CLANE_ULPS) |
+			 DSI_PHYC_DLANE0_ULPS |
+			 (dsi->lanes > 1 ? DSI_PHYC_DLANE1_ULPS : 0) |
+			 (dsi->lanes > 2 ? DSI_PHYC_DLANE2_ULPS : 0) |
+			 (dsi->lanes > 3 ? DSI_PHYC_DLANE3_ULPS : 0));
+	u32 stat_ulps = (DSI1_STAT_PHY_CLOCK_ULPS |
+			 DSI1_STAT_PHY_D0_ULPS |
+			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_ULPS : 0) |
+			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_ULPS : 0) |
+			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_ULPS : 0));
+	u32 stat_stop = (DSI1_STAT_PHY_CLOCK_STOP |
+			 DSI1_STAT_PHY_D0_STOP |
+			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_STOP : 0) |
+			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
+			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_STOP : 0));
+	int ret;
+
+	DSI_PORT_WRITE(STAT, stat_ulps);
+	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) | phyc_ulps);
+	ret = wait_for((DSI_PORT_READ(STAT) & stat_ulps) == stat_ulps, 20);
+	if (ret) {
+		dev_warn(&dsi->pdev->dev,
+			 "Timeout waiting for DSI ULPS entry: STAT 0x%08x",
+			 DSI_PORT_READ(STAT));
+		DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
+		vc4_dsi_latch_ulps(dsi, false);
+		return;
+	}
+
+	/* The DSI module can't be disabled while the module is
+	 * generating ULPS state.  So, to be able to disable the
+	 * module, we have the AFE latch the ULPS state and continue
+	 * on to having the module enter STOP.
+	 */
+	vc4_dsi_latch_ulps(dsi, ulps);
+
+	DSI_PORT_WRITE(STAT, stat_stop);
+	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
+	ret = wait_for((DSI_PORT_READ(STAT) & stat_stop) == stat_stop, 20);
+	if (ret) {
+		dev_warn(&dsi->pdev->dev,
+			 "Timeout waiting for DSI STOP entry: STAT 0x%08x",
+			 DSI_PORT_READ(STAT));
+		DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
+		return;
+	}
+}
+
 static uint32_t
 dsi_hs_timing(u32 ui_ns, u32 ns, u32 ui)
 {
@@ -852,6 +915,8 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 
 	drm_panel_disable(dsi->panel);
+
+	vc4_dsi_ulps(dsi, true);
 
 	drm_panel_unprepare(dsi->panel);
 
@@ -1107,6 +1172,8 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		DRM_INFO("DSI regs after:\n");
 		vc4_dsi_dump_regs(dsi);
 	}
+
+	vc4_dsi_ulps(dsi, false);
 
 	ret = drm_panel_enable(dsi->panel);
 	if (ret) {
