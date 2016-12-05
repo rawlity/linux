@@ -923,8 +923,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		break;
 	}
 
-	dev_info(&dsi->pdev->dev, "PHY CLOCK: %ld\n", hs_clock);
-
 	/* Set AFE CTR00/CTR1 to release powerdown of analog. */
 	if (dsi->port == 0) {
 		u32 afec0 = (VC4_SET_FIELD(7, DSI_PHY_AFEC0_PTATADJ) |
@@ -984,6 +982,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	hs_clock = clk_get_rate(dsi->pll_phy_clock);
+	dev_info(&dsi->pdev->dev, "PHY CLOCK: %ld\n", hs_clock);
 
 	ret = clk_set_rate(dsi->pixel_clock, mode->clock * 1000);
 	if (ret)
