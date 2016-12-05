@@ -1154,6 +1154,7 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
 	struct vc4_dsi *dsi = host_to_dsi(host);
+	int ret = 0;
 
 	dev_info(&dsi->pdev->dev, "DSI attaching\n");
 
@@ -1169,8 +1170,14 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 	}
 
 	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (dsi->panel)
-		return drm_panel_attach(dsi->panel, dsi->connector);
+	if (!dsi->panel)
+		return 0;
+
+	ret = drm_panel_attach(dsi->panel, dsi->connector);
+	if (ret != 0)
+		return ret;
+
+	drm_helper_hpd_irq_event(dsi->connector->dev);
 
 	return 0;
 }
@@ -1188,6 +1195,8 @@ static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
 			return ret;
 
 		dsi->panel = NULL;
+
+		drm_helper_hpd_irq_event(dsi->connector->dev);
 	}
 
 	return 0;
