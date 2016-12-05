@@ -350,6 +350,15 @@
 # define DSI1_CTRL_DISABLE_DISP_ECCC	BIT(1)
 # define DSI0_CTRL_CTRL0		BIT(0)
 # define DSI1_CTRL_EN			BIT(0)
+# define DSI0_CTRL_RESET_FIFOS		(DSI_CTRL_CLR_LDF | \
+					 DSI0_CTRL_CLR_PBCF | \
+					 DSI0_CTRL_CLR_CPBCF |	\
+					 DSI0_CTRL_CLR_PDF | \
+					 DSI0_CTRL_CLR_CDF)
+# define DSI1_CTRL_RESET_FIFOS		(DSI_CTRL_CLR_LDF | \
+					 DSI1_CTRL_CLR_RXF | \
+					 DSI1_CTRL_CLR_PDF | \
+					 DSI1_CTRL_CLR_CDF)
 
 #define DSI1_TXPKT2C		0x0c
 #define DSI1_TXPKT2H		0x10
@@ -887,22 +896,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	/* Reset the DSI and all its fifos. */
-	if (dsi->port == 0) {
-		DSI_PORT_WRITE(CTRL,
-			       DSI_CTRL_SOFT_RESET_CFG |
-			       DSI_CTRL_CLR_LDF |
-			       DSI0_CTRL_CLR_PBCF |
-			       DSI0_CTRL_CLR_CPBCF |
-			       DSI0_CTRL_CLR_PDF |
-			       DSI0_CTRL_CLR_CDF);
-	} else {
-		DSI_PORT_WRITE(CTRL,
-			       DSI_CTRL_SOFT_RESET_CFG |
-			       DSI_CTRL_CLR_LDF |
-			       DSI1_CTRL_CLR_RXF |
-			       DSI1_CTRL_CLR_PDF |
-			       DSI1_CTRL_CLR_CDF);
-	}
+	DSI_PORT_WRITE(CTRL,
+		       DSI_CTRL_SOFT_RESET_CFG |
+		       DSI_PORT_BIT(CTRL_RESET_FIFOS));
 
 	DSI_PORT_WRITE(CTRL,
 		       DSI_CTRL_HSDT_EOT_DISABLE |
