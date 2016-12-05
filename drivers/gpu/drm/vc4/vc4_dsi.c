@@ -64,8 +64,20 @@
 
 # define DSI_TXPKT1C_CMD_TX_TIME_MASK	VC4_MASK(7, 6)
 # define DSI_TXPKT1C_CMD_TX_TIME_SHIFT	6
+
 # define DSI_TXPKT1C_CMD_CTRL_MASK	VC4_MASK(5, 4)
 # define DSI_TXPKT1C_CMD_CTRL_SHIFT	4
+/* Command only.  Uses TXPKT1H and DISPLAY_NO */
+# define DSI_TXPKT1C_CMD_CTRL_TX	0
+/* Command with BTA for either ack or read data. */
+# define DSI_TXPKT1C_CMD_CTRL_RX	1
+/* Trigger according to TRIG_CMD */
+# define DSI_TXPKT1C_CMD_CTRL_TRIG	2
+/* BTA alone for getting error status after a command, or a TE trigger
+ * without a previous command.
+ */
+# define DSI_TXPKT1C_CMD_CTRL_BTA	3
+
 # define DSI_TXPKT1C_CMD_MODE_LP	BIT(3)
 # define DSI_TXPKT1C_CMD_TYPE_LONG	BIT(2)
 # define DSI_TXPKT1C_CMD_TE_EN		BIT(1)
@@ -88,9 +100,15 @@
 # define DSI_RXPKT1H_ECC_ERR		BIT(29)
 # define DSI_RXPKT1H_COR_ERR		BIT(28)
 # define DSI_RXPKT1H_INCOMP_PKT		BIT(25)
-# define DSI_RXPKT1H_PKT_TYPE		BIT(24)
+# define DSI_RXPKT1H_PKT_TYPE_LONG	BIT(24)
+/* Byte count if DSI_RXPKT1H_PKT_TYPE_LONG */
 # define DSI_RXPKT1H_BC_PARAM_MASK	VC4_MASK(23, 8)
 # define DSI_RXPKT1H_BC_PARAM_SHIFT	8
+/* Short return bytes if !DSI_RXPKT1H_PKT_TYPE_LONG */
+# define DSI_RXPKT1H_SHORT_1_MASK	VC4_MASK(23, 16)
+# define DSI_RXPKT1H_SHORT_1_SHIFT	16
+# define DSI_RXPKT1H_SHORT_0_MASK	VC4_MASK(15, 8)
+# define DSI_RXPKT1H_SHORT_0_SHIFT	8
 # define DSI_RXPKT1H_DT_LP_CMD_MASK	VC4_MASK(7, 0)
 # define DSI_RXPKT1H_DT_LP_CMD_SHIFT	0
 
@@ -224,13 +242,24 @@
 #define DSI0_TA_TO_CNT		0x38
 #define DSI0_PR_TO_CNT		0x3c
 #define DSI0_PHYC		0x40
-# define DSI_PHYC_ESC_CLK_LPDT_MASK	VC4_MASK(25, 20)
-# define DSI_PHYC_ESC_CLK_LPDT_SHIFT	20
-# define DSI_PHYC_HS_CLK_CONTINUOUS	BIT(18)
-# define DSI_PHYC_CLANE_ENABLE		BIT(16)
+# define DSI1_PHYC_ESC_CLK_LPDT_MASK	VC4_MASK(25, 20)
+# define DSI1_PHYC_ESC_CLK_LPDT_SHIFT	20
+# define DSI1_PHYC_HS_CLK_CONTINUOUS	BIT(18)
+# define DSI0_PHYC_ESC_CLK_LPDT_MASK	VC4_MASK(17, 12)
+# define DSI0_PHYC_ESC_CLK_LPDT_SHIFT	12
+# define DSI1_PHYC_CLANE_ULPS		BIT(17)
+# define DSI1_PHYC_CLANE_ENABLE		BIT(16)
+# define DSI_PHYC_DLANE3_ULPS		BIT(13)
 # define DSI_PHYC_DLANE3_ENABLE		BIT(12)
+# define DSI0_PHYC_HS_CLK_CONTINUOUS	BIT(10)
+# define DSI0_PHYC_CLANE_ULPS		BIT(9)
+# define DSI_PHYC_DLANE2_ULPS		BIT(9)
+# define DSI0_PHYC_CLANE_ENABLE		BIT(8)
 # define DSI_PHYC_DLANE2_ENABLE		BIT(8)
+# define DSI_PHYC_DLANE1_ULPS		BIT(5)
 # define DSI_PHYC_DLANE1_ENABLE		BIT(4)
+# define DSI_PHYC_DLANE0_FORCE_STOP	BIT(2)
+# define DSI_PHYC_DLANE0_ULPS		BIT(1)
 # define DSI_PHYC_DLANE0_ENABLE		BIT(0)
 
 #define DSI0_HS_CLT0		0x44
@@ -245,6 +274,7 @@
 #define DSI0_PHY_AFEC0		0x64
 # define DSI0_PHY_AFEC0_DDR2CLK_EN		BIT(26)
 # define DSI0_PHY_AFEC0_DDRCLK_EN		BIT(25)
+# define DSI0_PHY_AFEC0_LATCH_ULPS		BIT(24)
 # define DSI1_PHY_AFEC0_IDR_DLANE3_MASK		VC4_MASK(31, 29)
 # define DSI1_PHY_AFEC0_IDR_DLANE3_SHIFT	29
 # define DSI1_PHY_AFEC0_IDR_DLANE2_MASK		VC4_MASK(28, 26)
@@ -263,6 +293,7 @@
 # define DSI0_PHY_AFEC0_ACTRL_CLANE_SHIFT	12
 # define DSI1_PHY_AFEC0_DDR2CLK_EN		BIT(16)
 # define DSI1_PHY_AFEC0_DDRCLK_EN		BIT(15)
+# define DSI1_PHY_AFEC0_LATCH_ULPS		BIT(14)
 # define DSI1_PHY_AFEC0_RESET			BIT(13)
 # define DSI1_PHY_AFEC0_PD			BIT(12)
 # define DSI0_PHY_AFEC0_RESET			BIT(11)
@@ -327,7 +358,44 @@
 #define DSI1_DISP0_CTRL		0x28
 #define DSI1_INT_STAT		0x30
 #define DSI1_INT_EN		0x34
+/* State reporting bits.  These mostly behave like INT_STAT, where
+ * writing a 1 clears the bit.
+ */
 #define DSI1_STAT		0x38
+# define DSI1_STAT_PHY_D3_ULPS		BIT(31)
+# define DSI1_STAT_PHY_D3_STOP		BIT(30)
+# define DSI1_STAT_PHY_D2_ULPS		BIT(29)
+# define DSI1_STAT_PHY_D2_STOP		BIT(28)
+# define DSI1_STAT_PHY_D1_ULPS		BIT(27)
+# define DSI1_STAT_PHY_D1_STOP		BIT(26)
+# define DSI1_STAT_PHY_D0_ULPS		BIT(25)
+# define DSI1_STAT_PHY_D0_STOP		BIT(24)
+# define DSI1_STAT_FIFO_ERR		BIT(23)
+# define DSI1_STAT_PHY_RXLPDT		BIT(22)
+# define DSI1_STAT_PHY_RXTRIG		BIT(21)
+# define DSI1_STAT_PHY_D0_LPDT		BIT(20)
+/* Set when in forward direction */
+# define DSI1_STAT_PHY_DIR		BIT(19)
+# define DSI1_STAT_PHY_CLOCK_ULPS	BIT(18)
+# define DSI1_STAT_PHY_CLOCK_HS		BIT(17)
+# define DSI1_STAT_PHY_CLOCK_STOP	BIT(16)
+# define DSI1_STAT_PR_TO		BIT(15)
+# define DSI1_STAT_TA_TO		BIT(14)
+# define DSI1_STAT_LPRX_TO		BIT(13)
+# define DSI1_STAT_HSTX_TO		BIT(12)
+# define DSI1_STAT_ERR_CONT_LP1		BIT(11)
+# define DSI1_STAT_ERR_CONT_LP0		BIT(10)
+# define DSI1_STAT_ERR_CONTROL		BIT(9)
+# define DSI1_STAT_ERR_SYNC_ESC		BIT(8)
+# define DSI1_STAT_RXPKT2		BIT(7)
+# define DSI1_STAT_RXPKT1		BIT(6)
+# define DSI1_STAT_TXPKT2_BUSY		BIT(5)
+# define DSI1_STAT_TXPKT2_DONE		BIT(4)
+# define DSI1_STAT_TXPKT2_END		BIT(3)
+# define DSI1_STAT_TXPKT1_BUSY		BIT(2)
+# define DSI1_STAT_TXPKT1_DONE		BIT(1)
+# define DSI1_STAT_TXPKT1_END		BIT(0)
+
 #define DSI1_HSTX_TO_CNT	0x3c
 #define DSI1_LPRX_TO_CNT	0x40
 #define DSI1_TA_TO_CNT		0x44
@@ -511,6 +579,7 @@ dsi_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 	DSI_READ(dsi->port ? DSI1_##offset : DSI0_##offset)
 #define DSI_PORT_WRITE(offset, val) \
 	DSI_WRITE(dsi->port ? DSI1_##offset : DSI0_##offset, val)
+#define DSI_PORT_BIT(bit) (dsi->port ? DSI1_##bit : DSI0_##bit)
 
 /* VC4 DSI encoder KMS struct */
 struct vc4_dsi_encoder {
@@ -990,10 +1059,12 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		       (dsi->lanes >= 2 ? DSI_PHYC_DLANE1_ENABLE : 0) |
 		       (dsi->lanes >= 3 ? DSI_PHYC_DLANE2_ENABLE : 0) |
 		       (dsi->lanes >= 4 ? DSI_PHYC_DLANE3_ENABLE : 0) |
-		       DSI_PHYC_CLANE_ENABLE |
+		       DSI_PORT_BIT(PHYC_CLANE_ENABLE) |
 		       ((dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) ?
-			0 : DSI_PHYC_HS_CLK_CONTINUOUS) |
-		       VC4_SET_FIELD(lpx, DSI_PHYC_ESC_CLK_LPDT));
+			0 : DSI_PORT_BIT(PHYC_HS_CLK_CONTINUOUS)) |
+		       (dsi->port == 0 ?
+			VC4_SET_FIELD(lpx, DSI0_PHYC_ESC_CLK_LPDT) :
+			VC4_SET_FIELD(lpx, DSI1_PHYC_ESC_CLK_LPDT)));
 
 	DSI_PORT_WRITE(CTRL,
 		       DSI_PORT_READ(CTRL) |
