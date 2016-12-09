@@ -1173,12 +1173,12 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 			       DSI_PORT_READ(PHY_AFEC0) & ~DSI1_PHY_AFEC0_RESET);
 	}
 
+	vc4_dsi_ulps(dsi, false);
+
 	if (debug_dump_regs) {
 		DRM_INFO("DSI regs after:\n");
 		vc4_dsi_dump_regs(dsi);
 	}
-
-	vc4_dsi_ulps(dsi, false);
 
 	ret = drm_panel_enable(dsi->panel);
 	if (ret) {
@@ -1271,7 +1271,7 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	/* Enable the appropriate interrupt for the transfer completion. */
 	dsi->xfer_result = 0;
 	reinit_completion(&dsi->xfer_completion);
-	DSI_PORT_WRITE(INT_STAT, DSI1_INT_TXPKT1_DONE);
+	DSI_PORT_WRITE(INT_STAT, DSI1_INT_TXPKT1_DONE | DSI1_INT_PHY_DIR_RTF);
 	if (msg->rx_len) {
 		DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
 					DSI1_INT_PHY_DIR_RTF));
