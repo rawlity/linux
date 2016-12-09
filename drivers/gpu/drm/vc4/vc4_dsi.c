@@ -1219,9 +1219,14 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 		 *
 		 * With this arrangement, the command FIFO will never get full.
 		 */
-		cmd_fifo_len = packet.payload_length % DSI_PIX_FIFO_WIDTH;
-		pix_fifo_len = ((packet.payload_length - cmd_fifo_len) /
-				DSI_PIX_FIFO_WIDTH);
+		if (packet.payload_length <= 16) {
+			cmd_fifo_len = packet.payload_length;
+			pix_fifo_len = 0;
+		} else {
+			cmd_fifo_len = packet.payload_length % DSI_PIX_FIFO_WIDTH;
+			pix_fifo_len = ((packet.payload_length - cmd_fifo_len) /
+					DSI_PIX_FIFO_WIDTH);
+		}
 
 		WARN_ON_ONCE(pix_fifo_len >= DSI_PIX_FIFO_DEPTH);
 
