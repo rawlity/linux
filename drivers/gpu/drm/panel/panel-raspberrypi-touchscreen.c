@@ -348,6 +348,7 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	rpi_touchscreen_write(ts, SPICMR, 0x00);
 	rpi_touchscreen_write(ts, LCDCTRL, 0x00100150);
 	rpi_touchscreen_write(ts, SYSCTRL, 0x040f);
+	msleep(100);
 
 	rpi_touchscreen_write(ts, PPI_STARTPPI, 0x01);
 	rpi_touchscreen_write(ts, DSI_STARTDSI, 0x01);
