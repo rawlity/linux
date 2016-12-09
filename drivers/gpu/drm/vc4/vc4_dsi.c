@@ -1030,8 +1030,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 		/* AFEC reset hold time */
 		mdelay(1);
-
-		DSI_PORT_WRITE(PHY_AFEC0, afec0 & ~DSI1_PHY_AFEC0_RESET);
 	}
 
 	ret = clk_prepare_enable(dsi->escape_clock);
@@ -1166,6 +1164,13 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		DSI_PORT_WRITE(CTRL, DSI_PORT_READ(CTRL) | DSI0_CTRL_CTRL0);
 	else {
 		DSI_PORT_WRITE(CTRL, DSI_PORT_READ(CTRL) | DSI1_CTRL_EN);
+	}
+
+	/* Bring AFE out of reset. */
+	if (dsi->port == 0) {
+	} else {
+		DSI_PORT_WRITE(PHY_AFEC0,
+			       DSI_PORT_READ(PHY_AFEC0) & ~DSI1_PHY_AFEC0_RESET);
 	}
 
 	if (debug_dump_regs) {
