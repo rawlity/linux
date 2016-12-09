@@ -863,7 +863,7 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 
 	DSI_PORT_WRITE(STAT, stat_ulps);
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) | phyc_ulps);
-	ret = wait_for((DSI_PORT_READ(STAT) & stat_ulps) == stat_ulps, 20);
+	ret = wait_for((DSI_PORT_READ(STAT) & stat_ulps) == stat_ulps, 200);
 	if (ret) {
 		dev_warn(&dsi->pdev->dev,
 			 "Timeout waiting for DSI ULPS entry: STAT 0x%08x",
@@ -882,7 +882,7 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 
 	DSI_PORT_WRITE(STAT, stat_stop);
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) & ~phyc_ulps);
-	ret = wait_for((DSI_PORT_READ(STAT) & stat_stop) == stat_stop, 20);
+	ret = wait_for((DSI_PORT_READ(STAT) & stat_stop) == stat_stop, 200);
 	if (ret) {
 		dev_warn(&dsi->pdev->dev,
 			 "Timeout waiting for DSI STOP entry: STAT 0x%08x",
