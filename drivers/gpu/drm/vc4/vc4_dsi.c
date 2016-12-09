@@ -694,7 +694,7 @@ static void vc4_dsi_dump_regs(struct vc4_dsi *dsi)
 }
 
 #ifdef CONFIG_DEBUG_FS
-int vc4_dsi1_debugfs_regs(struct seq_file *m, void *unused)
+int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *drm = node->minor->dev;
