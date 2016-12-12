@@ -634,6 +634,8 @@ static const struct {
 	DSI_REG(DSI0_PR_TO_CNT),
 	DSI_REG(DSI0_DISP0_CTRL),
 	DSI_REG(DSI0_DISP1_CTRL),
+	DSI_REG(DSI0_INT_STAT),
+	DSI_REG(DSI0_INT_EN),
 	DSI_REG(DSI0_PHYC),
 	DSI_REG(DSI0_HS_CLT0),
 	DSI_REG(DSI0_HS_CLT1),
@@ -660,6 +662,8 @@ static const struct {
 	DSI_REG(DSI1_PR_TO_CNT),
 	DSI_REG(DSI1_DISP0_CTRL),
 	DSI_REG(DSI1_DISP1_CTRL),
+	DSI_REG(DSI1_INT_STAT),
+	DSI_REG(DSI1_INT_EN),
 	DSI_REG(DSI1_PHYC),
 	DSI_REG(DSI1_HS_CLT0),
 	DSI_REG(DSI1_HS_CLT1),
@@ -969,6 +973,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	DSI_PORT_WRITE(CTRL,
 		       DSI_CTRL_HSDT_EOT_DISABLE |
 		       DSI_CTRL_RX_LPDT_EOT_DISABLE);
+
+	/* Clear all stat bits so we see what has happened during enable. */
+	DSI_PORT_WRITE(STAT, DSI_PORT_READ(STAT));
 
 	switch (dsi->format) {
 	case MIPI_DSI_FMT_RGB888:
