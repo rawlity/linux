@@ -920,14 +920,12 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
 	uint32_t format = 0, divider = 0;
-	bool debug_dump_regs = true;
+	bool debug_dump_regs = false;
 	unsigned long hs_clock;
 	uint32_t ui_ns;
 	/* Minimum LP state duration in escape clock cycles. */
 	uint32_t lpx = dsi_esc_timing(60);
 	int ret;
-
-	pr_err("DSI enabling\n");
 
 	ret = drm_panel_prepare(dsi->panel);
 	if (ret) {
@@ -1177,7 +1175,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		drm_panel_unprepare(dsi->panel);
 		return;
 	}
-	pr_err("DSI enabled\n");
 }
 
 static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
@@ -1191,9 +1188,6 @@ static ssize_t vc4_dsi_host_transfer(struct mipi_dsi_host *host,
 	u32 cmd_fifo_len = 0, pix_fifo_len = 0;
 
 	mipi_dsi_create_packet(&packet, msg);
-	pr_err("DSI host xfer %db, %s\n",
-	       packet.payload_length,
-	       is_long ? "long" : "short");
 
 	pkth |= VC4_SET_FIELD(packet.header[0], DSI_TXPKT1H_BC_DT);
 	pkth |= VC4_SET_FIELD(packet.header[1] |
