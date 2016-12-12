@@ -278,13 +278,13 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 {
 	struct rpi_touchscreen *ts = panel_to_ts(panel);
 
+	if (!ts->enabled)
+		return 0;
+
 	rpi_touchscreen_i2c_write(ts, REG_PWM, 0);
 
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 	udelay(1);
-
-	if (!ts->enabled)
-		return 0;
 
 	if (ts->backlight) {
 		ts->backlight->props.power = FB_BLANK_POWERDOWN;
