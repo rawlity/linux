@@ -234,16 +234,12 @@ static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
 
 static u8 rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg)
 {
-	dev_info(ts->base.dev, "R 0x%02x\n", reg);
-
 	return i2c_smbus_read_byte_data(ts->bridge_i2c, reg);
 }
 
 static void rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts, u8 reg, u8 val)
 {
 	int ret;
-
-	dev_info(ts->base.dev, "W 0x%02x -> 0x%02x\n", reg, val);
 
 	ret = i2c_smbus_write_byte_data(ts->bridge_i2c, reg, val);
 	if (ret)
@@ -266,8 +262,6 @@ static int rpi_touchscreen_write(struct rpi_touchscreen *ts, u16 reg, u32 val)
 		val >> 16,
 		val >> 24,
 	};
-
-	dev_info(ts->base.dev, "W 0x%04x -> 0x%08x\n", reg, val);
 
 	mipi_dsi_dcs_write_buffer(ts->dsi, msg, sizeof(msg));
 #else
