@@ -1067,52 +1067,52 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	 */
 	ui_ns = DIV_ROUND_UP(500000000, hs_clock);
 
-	DSI_PORT_WRITE(HS_CLT0, 0x03202020 /*
+	DSI_PORT_WRITE(HS_CLT0,
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 262, 0),
 				     DSI_HS_CLT0_CZERO) |
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 0, 8),
 				     DSI_HS_CLT0_CPRE) |
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 38, 0),
-		       DSI_HS_CLT0_CPREP) */);
+				     DSI_HS_CLT0_CPREP));
 
-	DSI_PORT_WRITE(HS_CLT1, 0x00006068 /*
+	DSI_PORT_WRITE(HS_CLT1,
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 60, 0),
 				     DSI_HS_CLT1_CTRAIL) |
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 60, 52),
-		       DSI_HS_CLT1_CPOST) */);
+				     DSI_HS_CLT1_CPOST));
 
-	DSI_PORT_WRITE(HS_CLT2, 0x000b3098 /*
+	DSI_PORT_WRITE(HS_CLT2,
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 1000000, 0),
-		       DSI_HS_CLT2_WUP) */);
+				     DSI_HS_CLT2_WUP));
 
-	DSI_PORT_WRITE(HS_DLT3, 0x0140b028 /*
+	DSI_PORT_WRITE(HS_DLT3,
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 100, 0),
 				     DSI_HS_DLT3_EXIT) |
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 105, 6),
 				     DSI_HS_DLT3_ZERO) |
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, 40, 4),
-		       DSI_HS_DLT3_PRE) */);
+				     DSI_HS_DLT3_PRE));
 
-	DSI_PORT_WRITE(HS_DLT4, 0x00007030 /*
+	DSI_PORT_WRITE(HS_DLT4,
 		       VC4_SET_FIELD(dsi_hs_timing(ui_ns, lpx * ESC_TIME_NS, 0),
 				     DSI_HS_DLT4_LPX) |
 		       VC4_SET_FIELD(max(dsi_hs_timing(ui_ns, 0, 8),
 					 dsi_hs_timing(ui_ns, 60, 4)),
 				     DSI_HS_DLT4_TRAIL) |
-				     VC4_SET_FIELD(0, DSI_HS_DLT4_ANLAT) */);
+		       VC4_SET_FIELD(0, DSI_HS_DLT4_ANLAT));
 
-	DSI_PORT_WRITE(HS_DLT5, 0x0037f2f0 /*VC4_SET_FIELD(dsi_hs_timing(ui_ns, 1000, 5000),
-					     DSI_HS_DLT5_INIT) */);
+	DSI_PORT_WRITE(HS_DLT5, VC4_SET_FIELD(dsi_hs_timing(ui_ns, 1000, 5000),
+					      DSI_HS_DLT5_INIT));
 
-	DSI_PORT_WRITE(HS_DLT6,0x22061b06 /*
+	DSI_PORT_WRITE(HS_DLT6,
 		       VC4_SET_FIELD(lpx * 5, DSI_HS_DLT6_TA_GET) |
 		       VC4_SET_FIELD(lpx, DSI_HS_DLT6_TA_SURE) |
 		       VC4_SET_FIELD(lpx * 4, DSI_HS_DLT6_TA_GO) |
-		       VC4_SET_FIELD(lpx, DSI_HS_DLT6_LP_LPX) */);
+		       VC4_SET_FIELD(lpx, DSI_HS_DLT6_LP_LPX));
 
-	DSI_PORT_WRITE(HS_DLT7, 0x0001adaf /*
+	DSI_PORT_WRITE(HS_DLT7,
 		       VC4_SET_FIELD(dsi_esc_timing(1000000),
-		       DSI_HS_DLT7_LP_WUP) */);
+				     DSI_HS_DLT7_LP_WUP));
 
 	/* Define EOT PKT in EOT reg. */
 
@@ -1125,8 +1125,8 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		       ((dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS) ?
 			0 : DSI_PORT_BIT(PHYC_HS_CLK_CONTINUOUS)) |
 		       (dsi->port == 0 ?
-			VC4_SET_FIELD(lpx, DSI0_PHYC_ESC_CLK_LPDT) :
-			VC4_SET_FIELD(lpx, DSI1_PHYC_ESC_CLK_LPDT)));
+			VC4_SET_FIELD(lpx - 1, DSI0_PHYC_ESC_CLK_LPDT) :
+			VC4_SET_FIELD(lpx - 1, DSI1_PHYC_ESC_CLK_LPDT)));
 
 	DSI_PORT_WRITE(CTRL,
 		       DSI_PORT_READ(CTRL) |
