@@ -735,8 +735,6 @@ vc4_dsi_connector_detect(struct drm_connector *connector, bool force)
 		to_vc4_dsi_connector(connector);
 	struct vc4_dsi *dsi = vc4_connector->dsi;
 
-	dev_info(&dsi->pdev->dev, "detecting %d\n", !!dsi->panel);
-
 	if (dsi->panel)
 		return connector_status_connected;
 	else
@@ -754,8 +752,6 @@ static int vc4_dsi_connector_get_modes(struct drm_connector *connector)
 	struct vc4_dsi_connector *vc4_connector =
 		to_vc4_dsi_connector(connector);
 	struct vc4_dsi *dsi = vc4_connector->dsi;
-
-	dev_info(&dsi->pdev->dev, "Getting modes\n");
 
 	if (dsi->panel)
 		return drm_panel_get_modes(dsi->panel);
