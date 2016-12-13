@@ -512,10 +512,12 @@ struct vc4_dsi {
 	enum mipi_dsi_pixel_format format;
 	u32 mode_flags;
 
-	/* Input clock to the PHY, for the DSI escape clock. */
+	/* Input clock from CPRMAN to the digital PHY, for the DSI
+	 * escape clock.
+	 */
 	struct clk *escape_clock;
 
-	/* Input clock to the PHY, used to generate the DSI bit
+	/* Input clock to the analog PHY, used to generate the DSI bit
 	 * clock.
 	 */
 	struct clk *pll_phy_clock;
@@ -925,6 +927,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	uint32_t ui_ns;
 	/* Minimum LP state duration in escape clock cycles. */
 	uint32_t lpx = dsi_esc_timing(60);
+	unsigned long pixel_clock_hz = mode->clock * 1000;
+	unsigned long dsip_clock;
+	unsigned long phy_clock;
 	int ret;
 
 	ret = drm_panel_prepare(dsi->panel);
@@ -937,26 +942,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		DRM_INFO("DSI regs before:\n");
 		vc4_dsi_dump_regs(dsi);
 	}
-
-	/* XXX */
-	if (1) {
-		ret = clk_set_rate(dsi->pll_phy_clock, 2020000000 / 3);
-		if (ret)
-			dev_err(&dsi->pdev->dev, "Failed to set phy clock: %d\n", ret);
-		dev_info(&dsi->pdev->dev, "Tried to set clock to: %d\n", 2000000000 / 3);
-	}
-
-	/* Reset the DSI and all its fifos. */
-	DSI_PORT_WRITE(CTRL,
-		       DSI_CTRL_SOFT_RESET_CFG |
-		       DSI_PORT_BIT(CTRL_RESET_FIFOS));
-
-	DSI_PORT_WRITE(CTRL,
-		       DSI_CTRL_HSDT_EOT_DISABLE |
-		       DSI_CTRL_RX_LPDT_EOT_DISABLE);
-
-	/* Clear all stat bits so we see what has happened during enable. */
-	DSI_PORT_WRITE(STAT, DSI_PORT_READ(STAT));
 
 	switch (dsi->format) {
 	case MIPI_DSI_FMT_RGB888:
@@ -976,6 +961,25 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 		divider = 16 / dsi->lanes;
 		break;
 	}
+
+	phy_clock = pixel_clock_hz * divider;
+	ret = clk_set_rate(dsi->pll_phy_clock, phy_clock);
+	if (ret) {
+		dev_err(&dsi->pdev->dev,
+			"Failed to set phy clock to %ld: %d\n", phy_clock, ret);
+	}
+
+	/* Reset the DSI and all its fifos. */
+	DSI_PORT_WRITE(CTRL,
+		       DSI_CTRL_SOFT_RESET_CFG |
+		       DSI_PORT_BIT(CTRL_RESET_FIFOS));
+
+	DSI_PORT_WRITE(CTRL,
+		       DSI_CTRL_HSDT_EOT_DISABLE |
+		       DSI_CTRL_RX_LPDT_EOT_DISABLE);
+
+	/* Clear all stat bits so we see what has happened during enable. */
+	DSI_PORT_WRITE(STAT, DSI_PORT_READ(STAT));
 
 	/* Set AFE CTR00/CTR1 to release powerdown of analog. */
 	if (dsi->port == 0) {
@@ -1012,7 +1016,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 		afec0 |= DSI1_PHY_AFEC0_RESET;
 
-		dev_info(&dsi->pdev->dev, "Setting afec0 to 0x%08x\n", afec0);
 		DSI_PORT_WRITE(PHY_AFEC0, afec0);
 
 		DSI_PORT_WRITE(PHY_AFEC1, 0);
@@ -1034,12 +1037,20 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	hs_clock = clk_get_rate(dsi->pll_phy_clock);
-	dev_info(&dsi->pdev->dev, "PHY CLOCK: %ld\n", hs_clock);
 
-	ret = clk_set_rate(dsi->pixel_clock, mode->clock * 1000);
-	if (ret)
-		dev_err(dev, "Failed to set pixel clock: %d\n", ret);
-	dev_info(&dsi->pdev->dev, "Tried to set pixel clock to: %d\n", mode->clock * 1000);
+	/* Yes, we set the DSI0P/DSI1P pixel clock to the byte rate,
+	 * not the pixel clock rate.  DSIxP take from the APHY's byte,
+	 * DDR2, or DDR4 clock (we use byte) and feed into the PV at
+	 * that rate.  Separately, a value derived from PIX_CLK_DIV
+	 * and HS_CLKC is fed into the PV to divide down to the actual
+	 * pixel clock for pushing pixels into DSI.
+	 */
+	dsip_clock = phy_clock / 8;
+	ret = clk_set_rate(dsi->pixel_clock, dsip_clock);
+	if (ret) {
+		dev_err(dev, "Failed to set pixel clock to %ldHz: %d\n",
+			dsip_clock, ret);
+	}
 
 	ret = clk_prepare_enable(dsi->pixel_clock);
 	if (ret) {
