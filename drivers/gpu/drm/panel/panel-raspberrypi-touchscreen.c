@@ -210,19 +210,30 @@ struct rpi_touchscreen {
 
 static const struct drm_display_mode rpi_touchscreen_modes[] = {
 	{
-		/* This is assuming that we'll be running the DSI PLL
-		 * at 2Ghz / 3 (since we only get integer dividers),
-		 * so a pixel clock of 2Ghz / 3 / 8.
+		/* The DSI PLL can only integer divide from the 2Ghz
+		 * PLLD, giving us few choices.  We pick a divide by 3
+		 * as our DSI HS clock, giving us a pixel clock of
+		 * that divided by 24 bits.  Pad out HFP to get our
+		 * panel to refresh at 60Hz, even if that doesn't
+		 * match the datasheet.
 		 */
-		.clock = 83333,
-		.hdisplay = 800,
-		.hsync_start = 800 + 61,
-		.hsync_end = 800 + 61 + 2,
-		.htotal = 800 + 61 + 2 + 44,
+#define PIXEL_CLOCK ((2000000000 / 3) / 24)
+#define VREFRESH    60
+#define VTOTAL      (480 + 7 + 2 + 21)
+#define HACT        800
+#define HSW         2
+#define HBP         46
+#define HFP         ((PIXEL_CLOCK / (VTOTAL * VREFRESH)) - (HACT + HSW + HBP))
+
+		.clock = PIXEL_CLOCK / 1000,
+		.hdisplay = HACT,
+		.hsync_start = HACT + HFP,
+		.hsync_end = HACT + HFP + HSW,
+		.htotal = HACT + HFP + HSW + HBP,
 		.vdisplay = 480,
 		.vsync_start = 480 + 7,
 		.vsync_end = 480 + 7 + 2,
-		.vtotal = 480 + 7 + 2 + 21,
+		.vtotal = VTOTAL,
 		.vrefresh = 60,
 	},
 };
