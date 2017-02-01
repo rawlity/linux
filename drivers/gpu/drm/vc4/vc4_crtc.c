@@ -61,22 +61,10 @@ struct vc4_crtc {
 	struct drm_pending_vblank_event *event;
 };
 
-struct vc4_crtc_state {
-	struct drm_crtc_state base;
-	/* Dlist area for this CRTC configuration. */
-	struct drm_mm_node mm;
-};
-
 static inline struct vc4_crtc *
 to_vc4_crtc(struct drm_crtc *crtc)
 {
 	return (struct vc4_crtc *)crtc;
-}
-
-static inline struct vc4_crtc_state *
-to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
-{
-	return (struct vc4_crtc_state *)crtc_state;
 }
 
 struct vc4_crtc_data {
