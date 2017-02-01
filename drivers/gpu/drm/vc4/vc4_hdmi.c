@@ -583,10 +583,23 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 	}
 }
 
+static int vc4_hdmi_encoder_check(struct drm_encoder *encoder,
+				  struct drm_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state)
+{
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
+
+	vc4_state->clock_select = PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI;
+	vc4_state->is_dsi = false;
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
 	.mode_set = vc4_hdmi_encoder_mode_set,
 	.disable = vc4_hdmi_encoder_disable,
 	.enable = vc4_hdmi_encoder_enable,
+	.atomic_check = vc4_hdmi_encoder_check,
 };
 
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)

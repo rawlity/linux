@@ -1402,9 +1402,22 @@ static const struct mipi_dsi_host_ops vc4_dsi_host_ops = {
 	.transfer = vc4_dsi_host_transfer,
 };
 
+static int vc4_dsi_encoder_check(struct drm_encoder *encoder,
+				 struct drm_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
+
+	vc4_state->clock_select = PV_CONTROL_CLK_SELECT_DSI;
+	vc4_state->is_dsi = true;
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs vc4_dsi_encoder_helper_funcs = {
 	.disable = vc4_dsi_encoder_disable,
 	.enable = vc4_dsi_encoder_enable,
+	.atomic_check = vc4_dsi_encoder_check,
 };
 
 static const struct of_device_id vc4_dsi_dt_match[] = {

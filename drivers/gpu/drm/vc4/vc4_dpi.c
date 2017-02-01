@@ -350,10 +350,23 @@ static bool vc4_dpi_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+static int vc4_dpi_encoder_check(struct drm_encoder *encoder,
+				 struct drm_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
+
+	vc4_state->clock_select = PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI;
+	vc4_state->is_dsi = false;
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs vc4_dpi_encoder_helper_funcs = {
 	.disable = vc4_dpi_encoder_disable,
 	.enable = vc4_dpi_encoder_enable,
 	.mode_fixup = vc4_dpi_encoder_mode_fixup,
+	.atomic_check = vc4_dpi_encoder_check,
 };
 
 static const struct of_device_id vc4_dpi_dt_match[] = {

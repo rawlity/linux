@@ -209,7 +209,6 @@ enum vc4_encoder_type {
 struct vc4_encoder {
 	struct drm_encoder base;
 	enum vc4_encoder_type type;
-	u32 clock_select;
 };
 
 static inline struct vc4_encoder *
@@ -222,6 +221,14 @@ struct vc4_crtc_state {
 	struct drm_crtc_state base;
 	/* Dlist area for this CRTC configuration. */
 	struct drm_mm_node mm;
+
+	/* PV's clock_select field for the encoder attached to this
+	 * CRTC, set by the encoder during atomic_check().
+	 */
+	u32 clock_select;
+
+	/* Whether the encoder currently attached to the CRTC is DSI. */
+	bool is_dsi;
 };
 
 static inline struct vc4_crtc_state *

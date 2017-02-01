@@ -522,7 +522,11 @@ static int vc4_vec_encoder_atomic_check(struct drm_encoder *encoder,
 					struct drm_crtc_state *crtc_state,
 					struct drm_connector_state *conn_state)
 {
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	const struct vc4_vec_tv_mode *vec_mode;
+
+	vc4_state->clock_select = PV_CONTROL_CLK_SELECT_VEC;
+	vc4_state->is_dsi = false;
 
 	vec_mode = &vc4_vec_tv_modes[conn_state->tv.mode];
 
