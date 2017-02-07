@@ -469,6 +469,16 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	clk_set_rate(vc4->hdmi->pixel_clock, mode->clock * 1000 *
 		     ((mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1));
 
+	/*
+	 * The HSM clock rate may have changed if it was based on PLLH and
+	 * someone changed PLLH rate (the VEC, A.K.A. SDTV block may have
+	 * tweaked PLLH rate to match its requirements).
+	 * Set the expected HSM clock rate again just to be sure.
+	 */
+	clk_disable_unprepare(vc4->hdmi->hsm_clock);
+	clk_set_rate(vc4->hdmi->hsm_clock, 163682864);
+	clk_prepare_enable(vc4->hdmi->hsm_clock);
+
 	HDMI_WRITE(VC4_HDMI_SCHEDULER_CONTROL,
 		   HDMI_READ(VC4_HDMI_SCHEDULER_CONTROL) |
 		   VC4_HDMI_SCHEDULER_CONTROL_MANUAL_FORMAT |
