@@ -39,7 +39,7 @@ static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 }
 
 #ifdef CONFIG_DEBUG_FS
-int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
+static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -530,6 +530,10 @@ void vc4_bo_cache_init(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	mutex_init(&vc4->bo_lock);
+
+#ifdef CONFIG_DEBUG_FS
+	vc4_debugfs_add_file(dev, "bo_stats", vc4_bo_stats_debugfs, NULL);
+#endif
 
 	INIT_LIST_HEAD(&vc4->bo_cache.time_list);
 

@@ -103,19 +103,7 @@ static const struct debugfs_reg32 v3d_regs[] = {
 	VC4_REG32(V3D_ERRSTAT),
 };
 
-int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	drm_print_regset32(&p, &vc4->v3d->regset);
-
-	return 0;
-}
-
-int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
+static int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -220,6 +208,11 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 40); /* a little over 2 frames. */
 	pm_runtime_enable(dev);
+
+#ifdef CONFIG_DEBUG_FS
+	vc4_debugfs_add_file(drm, "v3d_ident", vc4_v3d_debugfs_ident, NULL);
+	vc4_debugfs_add_regset32(drm, "v3d_regs", &v3d->regset);
+#endif
 
 	return 0;
 }

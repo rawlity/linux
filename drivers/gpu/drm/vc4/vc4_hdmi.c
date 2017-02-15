@@ -118,7 +118,7 @@ static const struct debugfs_reg32 hd_regs[] = {
 };
 
 #ifdef CONFIG_DEBUG_FS
-int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
+static int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
@@ -704,6 +704,10 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 		ret = PTR_ERR(hdmi->connector);
 		goto err_destroy_encoder;
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	vc4_debugfs_add_file(drm, "hdmi_regs", vc4_hdmi_debugfs_regs, hdmi);
+#endif
 
 	return 0;
 

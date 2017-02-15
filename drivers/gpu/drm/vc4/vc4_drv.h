@@ -114,6 +114,8 @@ struct vc4_dev {
 	} hangcheck;
 
 	struct semaphore async_modeset;
+
+	struct list_head debugfs_list;
 };
 
 static inline struct vc4_dev *
@@ -444,12 +446,10 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 void *vc4_prime_vmap(struct drm_gem_object *obj);
 void vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
-int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;
 bool vc4_event_pending(struct drm_crtc *crtc);
-int vc4_crtc_debugfs_regs(struct seq_file *m, void *arg);
 int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			    unsigned int flags, int *vpos, int *hpos,
 			    ktime_t *stime, ktime_t *etime,
@@ -460,17 +460,37 @@ int vc4_crtc_get_vblank_timestamp(struct drm_device *dev, unsigned int crtc_id,
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
+#ifdef CONFIG_DEBUG_FS
+void vc4_debugfs_add_file(struct drm_device *drm,
+			  const char *filename,
+			  int (*show)(struct seq_file*, void*),
+			  void *data);
+void vc4_debugfs_add_regset32(struct drm_device *drm,
+			      const char *filename,
+			      struct debugfs_regset32 *regset);
+#else
+static inline void vc4_debugfs_add_file(struct drm_device *drm,
+					const char *filename,
+					int (*show)(struct seq_file*, void*),
+					void *data)
+{
+}
+
+static inline void vc4_debugfs_add_regset32(struct drm_device *drm,
+					    const char *filename,
+					    struct debugfs_regset32 *regset)
+{
+}
+#endif
 
 /* vc4_drv.c */
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
 
 /* vc4_dpi.c */
 extern struct platform_driver vc4_dpi_driver;
-int vc4_dpi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_dsi.c */
 extern struct platform_driver vc4_dsi_driver;
-int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_gem.c */
 void vc4_gem_init(struct drm_device *dev);
@@ -493,11 +513,9 @@ int vc4_queue_seqno_cb(struct drm_device *dev,
 
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_hdmi_driver;
-int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_vec_driver;
-int vc4_vec_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_irq.c */
 irqreturn_t vc4_irq(int irq, void *arg);
@@ -509,7 +527,6 @@ void vc4_irq_reset(struct drm_device *dev);
 /* vc4_hvs.c */
 extern struct platform_driver vc4_hvs_driver;
 void vc4_hvs_dump_state(struct drm_device *dev);
-int vc4_hvs_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_kms.c */
 int vc4_kms_load(struct drm_device *dev);
@@ -524,8 +541,6 @@ void vc4_plane_async_set_fb(struct drm_plane *plane,
 
 /* vc4_v3d.c */
 extern struct platform_driver vc4_v3d_driver;
-int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused);
-int vc4_v3d_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_validate.c */
 int
