@@ -21,21 +21,34 @@
 #include "vc4_drv.h"
 #include "uapi/drm/vc4_drm.h"
 
+static void vc4_bo_stats_print(struct drm_printer *p, struct vc4_dev *vc4)
+{
+	struct vc4_bo_stats stats;
+
+	/* Take a snapshot of the current stats with the lock held. */
+	mutex_lock(&vc4->bo_lock);
+	stats = vc4->bo_stats;
+	mutex_unlock(&vc4->bo_lock);
+
+	drm_printf(p, "num bos allocated: %d\n",
+		   stats.num_allocated);
+	drm_printf(p, "size bos allocated: %dkb\n",
+		   stats.size_allocated / 1024);
+	drm_printf(p, "num bos used: %d\n",
+		   stats.num_allocated - stats.num_cached);
+	drm_printf(p, "size bos used: %dkb\n",
+		   (stats.size_allocated - stats.size_cached) / 1024);
+	drm_printf(p, "num bos cached: %d\n",
+		   stats.num_cached);
+	drm_printf(p, "size bos cached: %dkb\n",
+		   stats.size_cached / 1024);
+}
+
 static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 {
-	DRM_INFO("num bos allocated: %d\n",
-		 vc4->bo_stats.num_allocated);
-	DRM_INFO("size bos allocated: %dkb\n",
-		 vc4->bo_stats.size_allocated / 1024);
-	DRM_INFO("num bos used: %d\n",
-		 vc4->bo_stats.num_allocated - vc4->bo_stats.num_cached);
-	DRM_INFO("size bos used: %dkb\n",
-		 (vc4->bo_stats.size_allocated -
-		  vc4->bo_stats.size_cached) / 1024);
-	DRM_INFO("num bos cached: %d\n",
-		 vc4->bo_stats.num_cached);
-	DRM_INFO("size bos cached: %dkb\n",
-		 vc4->bo_stats.size_cached / 1024);
+	struct drm_printer p = drm_info_printer(&vc4->v3d->pdev->dev);
+
+	vc4_bo_stats_print(&p, vc4);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -44,25 +57,9 @@ static int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_bo_stats stats;
+	struct drm_printer p = drm_seq_file_printer(m);
 
-	/* Take a snapshot of the current stats with the lock held. */
-	mutex_lock(&vc4->bo_lock);
-	stats = vc4->bo_stats;
-	mutex_unlock(&vc4->bo_lock);
-
-	seq_printf(m, "num bos allocated: %d\n",
-		   stats.num_allocated);
-	seq_printf(m, "size bos allocated: %dkb\n",
-		   stats.size_allocated / 1024);
-	seq_printf(m, "num bos used: %d\n",
-		   stats.num_allocated - stats.num_cached);
-	seq_printf(m, "size bos used: %dkb\n",
-		   (stats.size_allocated - stats.size_cached) / 1024);
-	seq_printf(m, "num bos cached: %d\n",
-		   stats.num_cached);
-	seq_printf(m, "size bos cached: %dkb\n",
-		   stats.size_cached / 1024);
+	vc4_bo_stats_print(&p, vc4);
 
 	return 0;
 }
