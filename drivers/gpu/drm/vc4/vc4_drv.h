@@ -168,6 +168,7 @@ struct vc4_v3d {
 	struct vc4_dev *vc4;
 	struct platform_device *pdev;
 	void __iomem *regs;
+	struct debugfs_regset32 regset;
 };
 
 struct vc4_hvs {
@@ -184,6 +185,7 @@ struct vc4_hvs {
 	spinlock_t mm_lock;
 
 	struct drm_mm_node mitchell_netravali_filter;
+	struct debugfs_regset32 regset;
 };
 
 struct vc4_plane {
@@ -222,6 +224,8 @@ to_vc4_encoder(struct drm_encoder *encoder)
 #define V3D_WRITE(offset, val) writel(val, vc4->v3d->regs + offset)
 #define HVS_READ(offset) readl(vc4->hvs->regs + offset)
 #define HVS_WRITE(offset, val) writel(val, vc4->hvs->regs + offset)
+
+#define VC4_REG32(reg) { .name = #reg, .offset = reg }
 
 struct vc4_exec_info {
 	/* Sequence number for this bin/render job. */
