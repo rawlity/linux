@@ -444,7 +444,6 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 	struct nouveau_framebuffer *nouveau_fb = nouveau_framebuffer(fbcon->helper.fb);
 
 	drm_fb_helper_unregister_fbi(&fbcon->helper);
-	drm_fb_helper_release_fbi(&fbcon->helper);
 	drm_fb_helper_fini(&fbcon->helper);
 
 	if (nouveau_fb->nvbo) {
@@ -507,8 +506,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, &fbcon->helper, &nouveau_fbcon_helper_funcs);
 
-	ret = drm_fb_helper_init(dev, &fbcon->helper,
-				 dev->mode_config.num_crtc, 4);
+	ret = drm_fb_helper_init(dev, &fbcon->helper, 4);
 	if (ret)
 		goto free;
 

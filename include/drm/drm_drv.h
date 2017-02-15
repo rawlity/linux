@@ -102,6 +102,17 @@ struct drm_driver {
 	 *
 	 */
 	void (*unload) (struct drm_device *);
+
+	/**
+	 * @release:
+	 *
+	 * Optional callback for destroying device data after the final
+	 * reference is released, i.e. the device is being destroyed. Drivers
+	 * using this callback are responsible for calling drm_dev_fini()
+	 * to finalize the device and then freeing the struct themselves.
+	 */
+	void (*release) (struct drm_device *);
+
 	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
 
 	/**
@@ -109,15 +120,17 @@ struct drm_driver {
 	 *
 	 * Driver callback for fetching a raw hardware vblank counter for the
 	 * CRTC specified with the pipe argument.  If a device doesn't have a
-	 * hardware counter, the driver can simply use
-	 * drm_vblank_no_hw_counter() function. The DRM core will account for
-	 * missed vblank events while interrupts where disabled based on system
-	 * timestamps.
+	 * hardware counter, the driver can simply leave the hook as NULL.
+	 * The DRM core will account for missed vblank events while interrupts
+	 * where disabled based on system timestamps.
 	 *
 	 * Wraparound handling and loss of events due to modesetting is dealt
 	 * with in the DRM core code, as long as drivers call
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.get_vblank_counter instead.
 	 *
 	 * Returns:
 	 *
@@ -131,6 +144,9 @@ struct drm_driver {
 	 * Enable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
 	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.enable_vblank instead.
+	 *
 	 * Returns:
 	 *
 	 * Zero on success, appropriate errno if the given @crtc's vblank
@@ -143,6 +159,9 @@ struct drm_driver {
 	 *
 	 * Disable vblank interrupts for the CRTC specified with the pipe
 	 * argument.
+	 *
+	 * This is deprecated and should not be used by new drivers.
+	 * Use &drm_crtc_funcs.disable_vblank instead.
 	 */
 	void (*disable_vblank) (struct drm_device *dev, unsigned int pipe);
 
@@ -437,6 +456,8 @@ extern unsigned int drm_debug;
 int drm_dev_init(struct drm_device *dev,
 		 struct drm_driver *driver,
 		 struct device *parent);
+void drm_dev_fini(struct drm_device *dev);
+
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);

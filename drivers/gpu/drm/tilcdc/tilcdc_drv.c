@@ -403,8 +403,7 @@ static int tilcdc_init(struct drm_driver *ddrv, struct device *dev)
 	drm_mode_config_reset(ddev);
 
 	priv->fbdev = drm_fbdev_cma_init(ddev, bpp,
-			ddev->mode_config.num_crtc,
-			ddev->mode_config.num_connector);
+					 ddev->mode_config.num_connector);
 	if (IS_ERR(priv->fbdev)) {
 		ret = PTR_ERR(priv->fbdev);
 		goto init_failed;
@@ -436,16 +435,6 @@ static irqreturn_t tilcdc_irq(int irq, void *arg)
 	struct drm_device *dev = arg;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	return tilcdc_crtc_irq(priv->crtc);
-}
-
-static int tilcdc_enable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return 0;
-}
-
-static void tilcdc_disable_vblank(struct drm_device *dev, unsigned int pipe)
-{
-	return;
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -558,9 +547,6 @@ static struct drm_driver tilcdc_driver = {
 			       DRIVER_PRIME | DRIVER_ATOMIC),
 	.lastclose          = tilcdc_lastclose,
 	.irq_handler        = tilcdc_irq,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
-	.enable_vblank      = tilcdc_enable_vblank,
-	.disable_vblank     = tilcdc_disable_vblank,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops         = &drm_gem_cma_vm_ops,
 	.dumb_create        = drm_gem_cma_dumb_create,

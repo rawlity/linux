@@ -236,8 +236,7 @@ struct drm_fb_helper {
 void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs);
 int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *helper, int crtc_count,
-		       int max_conn);
+		       struct drm_fb_helper *helper, int max_conn);
 void drm_fb_helper_fini(struct drm_fb_helper *helper);
 int drm_fb_helper_blank(int blank, struct fb_info *info);
 int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
@@ -250,7 +249,6 @@ int drm_fb_helper_restore_fbdev_mode_unlocked(struct drm_fb_helper *fb_helper);
 
 struct fb_info *drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper);
-void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height);
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
@@ -308,7 +306,7 @@ static inline void drm_fb_helper_prepare(struct drm_device *dev,
 }
 
 static inline int drm_fb_helper_init(struct drm_device *dev,
-		       struct drm_fb_helper *helper, int crtc_count,
+		       struct drm_fb_helper *helper,
 		       int max_conn)
 {
 	return 0;
@@ -353,9 +351,6 @@ drm_fb_helper_alloc_fbi(struct drm_fb_helper *fb_helper)
 }
 
 static inline void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
-{
-}
-static inline void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
 {
 }
 

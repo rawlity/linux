@@ -63,7 +63,8 @@ static DEFINE_MUTEX(kernel_fb_helper_lock);
  * drm_fb_helper_init(), drm_fb_helper_single_add_all_connectors() and
  * drm_fb_helper_initial_config(). Drivers with fancier requirements than the
  * default behaviour can override the third step with their own code.
- * Teardown is done with drm_fb_helper_fini().
+ * Teardown is done with drm_fb_helper_fini() after the fbdev device is
+ * unregisters using drm_fb_helper_unregister_fbi().
  *
  * At runtime drivers should restore the fbdev console by calling
  * drm_fb_helper_restore_fbdev_mode_unlocked() from their &drm_driver.lastclose
@@ -709,10 +710,9 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 EXPORT_SYMBOL(drm_fb_helper_prepare);
 
 /**
- * drm_fb_helper_init - initialize a drm_fb_helper structure
+ * drm_fb_helper_init - initialize a &struct drm_fb_helper
  * @dev: drm device
  * @fb_helper: driver-allocated fbdev helper structure to initialize
- * @crtc_count: maximum number of crtcs to support in this fbdev emulation
  * @max_conn_count: max connector count
  *
  * This allocates the structures for the fbdev helper with the given limits.
@@ -727,9 +727,10 @@ EXPORT_SYMBOL(drm_fb_helper_prepare);
  */
 int drm_fb_helper_init(struct drm_device *dev,
 		       struct drm_fb_helper *fb_helper,
-		       int crtc_count, int max_conn_count)
+		       int max_conn_count)
 {
 	struct drm_crtc *crtc;
+	struct drm_mode_config *config = &dev->mode_config;
 	int i;
 
 	if (!drm_fbdev_emulation)
@@ -738,11 +739,11 @@ int drm_fb_helper_init(struct drm_device *dev,
 	if (!max_conn_count)
 		return -EINVAL;
 
-	fb_helper->crtc_info = kcalloc(crtc_count, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
+	fb_helper->crtc_info = kcalloc(config->num_crtc, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
 	if (!fb_helper->crtc_info)
 		return -ENOMEM;
 
-	fb_helper->crtc_count = crtc_count;
+	fb_helper->crtc_count = config->num_crtc;
 	fb_helper->connector_info = kcalloc(dev->mode_config.num_connector, sizeof(struct drm_fb_helper_connector *), GFP_KERNEL);
 	if (!fb_helper->connector_info) {
 		kfree(fb_helper->crtc_info);
@@ -751,7 +752,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 	fb_helper->connector_info_alloc_count = dev->mode_config.num_connector;
 	fb_helper->connector_count = 0;
 
-	for (i = 0; i < crtc_count; i++) {
+	for (i = 0; i < fb_helper->crtc_count; i++) {
 		fb_helper->crtc_info[i].mode_set.connectors =
 			kcalloc(max_conn_count,
 				sizeof(struct drm_connector *),
@@ -780,7 +781,9 @@ EXPORT_SYMBOL(drm_fb_helper_init);
  * @fb_helper: driver-allocated fbdev helper
  *
  * A helper to alloc fb_info and the members cmap and apertures. Called
- * by the driver within the fb_probe fb_helper callback function.
+ * by the driver within the fb_probe fb_helper callback function. Drivers do not
+ * need to release the allocated fb_info structure themselves, this is
+ * automatically done when calling drm_fb_helper_fini().
  *
  * RETURNS:
  * fb_info pointer if things went okay, pointer containing error code
@@ -823,7 +826,8 @@ EXPORT_SYMBOL(drm_fb_helper_alloc_fbi);
  * @fb_helper: driver-allocated fbdev helper
  *
  * A wrapper around unregister_framebuffer, to release the fb_info
- * framebuffer device
+ * framebuffer device. This must be called before releasing all resources for
+ * @fb_helper by calling drm_fb_helper_fini().
  */
 void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 {
@@ -833,32 +837,26 @@ void drm_fb_helper_unregister_fbi(struct drm_fb_helper *fb_helper)
 EXPORT_SYMBOL(drm_fb_helper_unregister_fbi);
 
 /**
- * drm_fb_helper_release_fbi - dealloc fb_info and its members
+ * drm_fb_helper_fini - finialize a &struct drm_fb_helper
  * @fb_helper: driver-allocated fbdev helper
  *
- * A helper to free memory taken by fb_info and the members cmap and
- * apertures
+ * This cleans up all remaining resources associated with @fb_helper. Must be
+ * called after drm_fb_helper_unlink_fbi() was called.
  */
-void drm_fb_helper_release_fbi(struct drm_fb_helper *fb_helper)
-{
-	if (fb_helper) {
-		struct fb_info *info = fb_helper->fbdev;
-
-		if (info) {
-			if (info->cmap.len)
-				fb_dealloc_cmap(&info->cmap);
-			framebuffer_release(info);
-		}
-
-		fb_helper->fbdev = NULL;
-	}
-}
-EXPORT_SYMBOL(drm_fb_helper_release_fbi);
-
 void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
-	if (!drm_fbdev_emulation)
+	struct fb_info *info;
+
+	if (!drm_fbdev_emulation || !fb_helper)
 		return;
+
+	info = fb_helper->fbdev;
+	if (info) {
+		if (info->cmap.len)
+			fb_dealloc_cmap(&info->cmap);
+		framebuffer_release(info);
+	}
+	fb_helper->fbdev = NULL;
 
 	mutex_lock(&kernel_fb_helper_lock);
 	if (!list_empty(&fb_helper->kernel_fb_list)) {

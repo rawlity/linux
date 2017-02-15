@@ -264,7 +264,6 @@ static struct drm_driver sti_driver = {
 	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &sti_driver_fops,
 
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = sti_crtc_enable_vblank,
 	.disable_vblank = sti_crtc_disable_vblank,
 
@@ -360,7 +359,7 @@ static int sti_bind(struct device *dev)
 
 	private = ddev->dev_private;
 	if (ddev->mode_config.num_connector) {
-		fbdev = drm_fbdev_cma_init(ddev, 32, ddev->mode_config.num_crtc,
+		fbdev = drm_fbdev_cma_init(ddev, 32,
 					   ddev->mode_config.num_connector);
 		if (IS_ERR(fbdev)) {
 			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");
