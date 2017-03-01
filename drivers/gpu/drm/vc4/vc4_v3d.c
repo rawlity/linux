@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "linux/clk.h"
 #include "linux/component.h"
 #include "linux/pm_runtime.h"
 #include "vc4_drv.h"
@@ -164,6 +165,9 @@ static int vc4_v3d_runtime_suspend(struct device *dev)
 
 	vc4_irq_uninstall(vc4->dev);
 
+	if (v3d->clk)
+		clk_disable_unprepare(v3d->clk);
+
 	return 0;
 }
 
@@ -171,6 +175,13 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 {
 	struct vc4_v3d *v3d = dev_get_drvdata(dev);
 	struct vc4_dev *vc4 = v3d->vc4;
+
+	if (v3d->clk) {
+		int ret = clk_prepare_enable(v3d->clk);
+
+		if (ret != 0)
+			return ret;
+	}
 
 	vc4_v3d_init_hw(vc4->dev);
 	vc4_irq_postinstall(vc4->dev);
@@ -202,10 +213,31 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	vc4->v3d = v3d;
 	v3d->vc4 = vc4;
 
+	v3d->clk = devm_clk_get(dev, "v3d_clk");
+	if (IS_ERR(v3d->clk)) {
+		int ret = PTR_ERR(v3d->clk);
+		if (ret == -ENODEV) {
+			/* bcm2835 didn't have a clock reference in the DT. */
+			ret = 0;
+			v3d->clk = NULL;
+		} else {
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "Failed to get V3D clock: %d\n",
+					ret);
+			return ret;
+		}
+	}
+
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
 			  V3D_READ(V3D_IDENT0), V3D_EXPECTED_IDENT0);
 		return -EINVAL;
+	}
+
+	if (v3d->clk) {
+		ret = clk_prepare_enable(v3d->clk);
+		if (ret != 0)
+			return ret;
 	}
 
 	/* Reset the binner overflow address/size at setup, to be sure
