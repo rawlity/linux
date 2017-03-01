@@ -406,6 +406,24 @@
 			status = "disabled";
 		};
 
+		v3d: v3d@180a2000 {
+			compatible = "brcm,bcm2835-v3d";
+			reg = <0x180a2000 0x1000>;
+			clocks = <&mipipll BCM_CYGNUS_MIPIPLL_CH2_V3D>;
+			clock-names = "v3d_clk";
+			clock-frequency = <300000000>;
+			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+
+			assigned-clocks =
+				<&mipipll BCM_CYGNUS_MIPIPLL>,
+				<&mipipll BCM_CYGNUS_MIPIPLL_CH2_V3D>;
+			assigned-clock-rates = <525000000>, <300000000>;
+		};
+
+		vc4: gpu {
+			compatible = "brcm,bcm2835-vc4";
+		};
+
 		adc: adc@180a6000 {
 			compatible = "brcm,iproc-static-adc";
 			#io-channel-cells = <1>;
