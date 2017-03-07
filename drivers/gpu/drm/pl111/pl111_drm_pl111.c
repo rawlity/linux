@@ -42,10 +42,9 @@ static int clcd_enable(struct drm_framebuffer *fb)
 
 	/* Enable and Power Up */
 	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
-	DRM_DEBUG_KMS("fb->bits_per_pixel = %d\n", fb->bits_per_pixel);
-	if (fb->bits_per_pixel == 16)
+	if (fb->format->format == DRM_FORMAT_RGB565)
 		cntl |= CNTL_LCDBPP16_565;
-	else if (fb->bits_per_pixel == 32 && fb->depth == 24)
+	else if (fb->format->format == DRM_FORMAT_XRGB8888)
 		cntl |= CNTL_LCDBPP24;
 	else
 		BUG_ON(1);

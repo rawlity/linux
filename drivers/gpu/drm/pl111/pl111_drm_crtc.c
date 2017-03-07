@@ -297,9 +297,8 @@ int pl111_crtc_helper_mode_set(struct drm_crtc *crtc,
 	struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
 	struct drm_display_mode *duplicated_mode;
 
-	DRM_DEBUG_KMS("DRM crtc_helper_mode_set, x=%d y=%d bpp=%d\n",
-			adjusted_mode->hdisplay, adjusted_mode->vdisplay,
-			crtc->fb->bits_per_pixel);
+	DRM_DEBUG_KMS("DRM crtc_helper_mode_set, x=%d y=%d\n",
+			adjusted_mode->hdisplay, adjusted_mode->vdisplay);
 
 	duplicated_mode = drm_mode_duplicate(crtc->dev, adjusted_mode);
 	if (!duplicated_mode)
