@@ -19,6 +19,8 @@
 #ifndef _PL111_DRM_H_
 #define _PL111_DRM_H_
 
+#include <drm/drm_gem.h>
+
 /* Defines for drm_mode_create_dumb flags settings */
 #define PL111_BO_SCANOUT  0x00000001 /* scanout compatible buffer requested */
 
