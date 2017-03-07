@@ -59,9 +59,11 @@ enum drm_connector_status pl111_connector_detect(struct drm_connector
 	return connector_status_connected;
 }
 
-void pl111_connector_dpms(struct drm_connector *connector, int mode)
+int pl111_connector_dpms(struct drm_connector *connector, int mode)
 {
 	DRM_DEBUG_KMS("DRM %s on connector=%p\n", __func__, connector);
+
+	return 0;
 }
 
 struct drm_encoder *
