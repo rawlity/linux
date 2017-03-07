@@ -28,6 +28,8 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fb_cma_helper.h>
 
 #include "pl111_drm.h"
 
@@ -74,7 +76,7 @@ void pl111_drm_lastclose(struct drm_device *dev)
 }
 
 struct drm_mode_config_funcs mode_config_funcs = {
-	.fb_create = pl111_fb_create,
+	.fb_create = drm_fb_cma_create,
 };
 
 static int pl111_modeset_init(struct drm_device *dev)
@@ -237,18 +239,12 @@ static int pl111_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
-static struct vm_operations_struct pl111_gem_vm_ops = {
-	.fault = pl111_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
-};
-
 static const struct file_operations drm_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-	.mmap = pl111_gem_mmap,
+	.mmap = drm_gem_cma_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
 };
@@ -270,12 +266,15 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 	.dumb_create = pl111_dumb_create,
-	.dumb_destroy = pl111_dumb_destroy,
-	.dumb_map_offset = pl111_dumb_map_offset,
-	.gem_free_object = pl111_gem_free_object,
-	.gem_vm_ops = &pl111_gem_vm_ops,
-	.prime_handle_to_fd = &pl111_prime_handle_to_fd,
-	.gem_prime_export = &pl111_gem_prime_export,
+	.dumb_destroy = drm_gem_dumb_destroy,
+	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
+	.gem_free_object = drm_gem_cma_free_object,
+	.gem_vm_ops = &drm_gem_cma_vm_ops,
+
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+	.gem_prime_import = drm_gem_prime_import,
+	.gem_prime_export = drm_gem_prime_export,
 };
 
 int pl111_drm_init(struct platform_device *dev)

@@ -200,22 +200,6 @@ enum pl111_cursor_sync {
 	CURSOR_SYNC_VSYNC
 };
 
-#define PL111_FB_FROM_FRAMEBUFFER(drm_fb) \
-	(container_of(drm_fb, struct pl111_drm_framebuffer, fb))
-
-#define PL111_BO_FROM_FRAMEBUFFER(drm_fb) \
-	(container_of(drm_fb, struct pl111_drm_framebuffer, fb)->bo)
-
-#define PL111_BO_TO_FRAMEBUFFER(drm_fb, bo) \
-	do { \
-		container_of(drm_fb, \
-			struct pl111_drm_framebuffer, fb)->bo = bo; \
-		bo->fb = fb; \
-	} while (0)
-
-#define PL111_BO_FROM_GEM(gem_obj) \
-	container_of(gem_obj, struct pl111_gem_bo, gem_object)
-
 #define to_pl111_crtc(x) container_of(x, struct pl111_drm_crtc, crtc)
 
 #define PL111_ENCODER_FROM_ENCODER(x) \

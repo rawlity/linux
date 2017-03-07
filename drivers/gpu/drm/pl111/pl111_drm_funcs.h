@@ -68,35 +68,14 @@ struct drm_framebuffer *pl111_fb_create(struct drm_device *dev,
 					struct drm_file *file_priv,
 					const struct drm_mode_fb_cmd2 *mode_cmd);
 
-/* VMA Functions */
-int pl111_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
-int pl111_gem_mmap(struct file *file_priv, struct vm_area_struct *vma);
-struct page **get_pages(struct drm_gem_object *obj);
-void put_pages(struct drm_gem_object *obj, struct page **pages);
-
 /* Suspend Functions */
 int pl111_drm_resume(struct drm_device *dev);
 int pl111_drm_suspend(struct drm_device *dev, pm_message_t state);
 
 /* GEM Functions */
 int pl111_dumb_create(struct drm_file *file_priv,
-			struct drm_device *dev,
-			struct drm_mode_create_dumb *args);
-int pl111_dumb_destroy(struct drm_file *file_priv,
-			struct drm_device *dev, uint32_t handle);
-int pl111_dumb_map_offset(struct drm_file *file_priv,
-			struct drm_device *dev, uint32_t handle,
-			uint64_t *offset);
-void pl111_gem_free_object(struct drm_gem_object *obj);
-
-int pl111_bo_mmap(struct drm_gem_object *obj, struct pl111_gem_bo *bo,
-			struct vm_area_struct *vma, size_t size);
-
-/* DMA BUF Functions */
-int pl111_prime_handle_to_fd(struct drm_device *dev, struct drm_file *file_priv,
-			uint32_t handle, uint32_t flags, int *prime_fd);
-struct dma_buf *pl111_gem_prime_export(struct drm_device *dev,
-				struct drm_gem_object *obj, int flags);
+		      struct drm_device *dev,
+		      struct drm_mode_create_dumb *args);
 
 /* Pl111 Functions */
 void show_framebuffer_on_crtc_cb_internal(struct pl111_drm_flip_resource
