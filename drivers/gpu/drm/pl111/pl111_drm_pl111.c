@@ -86,13 +86,6 @@ int clcd_disable(struct drm_crtc *crtc)
 	clk_disable_unprepare(priv.clk);
 
 	pl111_crtc->last_bpp = 0;
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	/* Release the previous buffers */
-	if (pl111_crtc->old_kds_res_set != NULL)
-		kds_resource_set_release(&pl111_crtc->old_kds_res_set);
-
-	pl111_crtc->old_kds_res_set = NULL;
-#endif
 	return 0;
 }
 

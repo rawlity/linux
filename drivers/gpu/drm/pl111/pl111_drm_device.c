@@ -35,35 +35,6 @@
 
 struct pl111_drm_dev_private priv;
 
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-static void initial_kds_obtained(void *cb1, void *cb2)
-{
-	wait_queue_head_t *wait = (wait_queue_head_t *) cb1;
-	bool *cb_has_called = (bool *) cb2;
-
-	*cb_has_called = true;
-	wake_up(wait);
-}
-
-/* Must be called from within current_displaying_lock spinlock */
-void release_kds_resource_and_display(struct pl111_drm_flip_resource *flip_res)
-{
-	struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(flip_res->crtc);
-	pl111_crtc->displaying_fb = flip_res->fb;
-
-	/* Release the previous buffer */
-	if (pl111_crtc->old_kds_res_set != NULL) {
-		/*
-		 * Can flip to the same buffer, but must not release the current
-		 * resource set
-		 */
-		BUG_ON(pl111_crtc->old_kds_res_set == flip_res->kds_res_set);
-		kds_resource_set_release(&pl111_crtc->old_kds_res_set);
-	}
-	/* Record the current buffer, to release on the next buffer flip */
-	pl111_crtc->old_kds_res_set = flip_res->kds_res_set;
-}
-#endif
 
 void pl111_drm_preclose(struct drm_device *dev, struct drm_file *file_priv)
 {
@@ -159,21 +130,6 @@ static int pl111_drm_load(struct drm_device *dev, unsigned long chipset)
 	mutex_init(&priv.export_dma_buf_lock);
 	atomic_set(&priv.nr_flips_in_flight, 0);
 	init_waitqueue_head(&priv.wait_for_flips);
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	ret = kds_callback_init(&priv.kds_cb, 1, show_framebuffer_on_crtc_cb);
-	if (ret != 0) {
-		pr_err("Failed to initialise KDS callback\n");
-		goto finish;
-	}
-
-	ret = kds_callback_init(&priv.kds_obtain_current_cb, 1,
-				initial_kds_obtained);
-	if (ret != 0) {
-		pr_err("Failed to init KDS obtain callback\n");
-		kds_callback_term(&priv.kds_cb);
-		goto finish;
-	}
-#endif
 
 	/* Create a cache for page flips */
 	priv.page_flip_slab = kmem_cache_create("page flip slab",
@@ -213,10 +169,6 @@ out_modeset:
 out_slab:
 	kmem_cache_destroy(priv.page_flip_slab);
 out_kds_callbacks:
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	kds_callback_term(&priv.kds_obtain_current_cb);
-	kds_callback_term(&priv.kds_cb);
-#endif
 finish:
 	DRM_DEBUG_KMS("pl111_drm_load returned %d\n", ret);
 	return ret;
@@ -232,10 +184,6 @@ static int pl111_drm_unload(struct drm_device *dev)
 	pl111_modeset_fini(dev);
 	pl111_device_fini(dev);
 
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	kds_callback_term(&priv.kds_obtain_current_cb);
-	kds_callback_term(&priv.kds_cb);
-#endif
 	return 0;
 }
 

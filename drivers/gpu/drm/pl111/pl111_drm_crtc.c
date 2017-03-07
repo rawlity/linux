@@ -48,13 +48,6 @@ static void vsync_worker(struct work_struct *work)
 	DRM_DEBUG_KMS("DRM Finalizing flip_res=%p\n", flip_res);
 
 	bo = PL111_BO_FROM_FRAMEBUFFER(flip_res->fb);
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	if (flip_res->worker_release_kds == true) {
-		spin_lock(&pl111_crtc->current_displaying_lock);
-		release_kds_resource_and_display(flip_res);
-		spin_unlock(&pl111_crtc->current_displaying_lock);
-	}
-#endif
 	/* Release DMA buffer on this flip */
 	if (bo->gem_object.export_dma_buf != NULL)
 		dma_buf_put(bo->gem_object.export_dma_buf);
@@ -92,28 +85,6 @@ void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc)
 	spin_lock_irqsave(&pl111_crtc->base_update_lock, irq_flags);
 
 	if (pl111_crtc->current_update_res != NULL) {
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-		/*
-		 * If the lock is not acquired defer completion of the
-		 * resource that caused the buffer update
-		 */
-		pl111_crtc->current_update_res->worker_release_kds =
-								true;
-		if (0 != spin_trylock(
-			&pl111_crtc->current_displaying_lock)) {
-			/* release the resource immediately */
-			release_kds_resource_and_display(
-					pl111_crtc->current_update_res);
-			/*
-			 * prevent worker from attempting to release
-			 * resource again
-			 */
-			pl111_crtc->current_update_res->
-					worker_release_kds = false;
-			spin_unlock(&pl111_crtc->
-					current_displaying_lock);
-		}
-#endif
 		/*
 		 * Release dma_buf and resource
 		 * (if not already released)
@@ -224,32 +195,6 @@ int show_framebuffer_on_crtc(struct drm_crtc *crtc,
 	INIT_WORK(&flip_res->vsync_work, vsync_worker);
 	INIT_LIST_HEAD(&flip_res->link);
 	DRM_DEBUG_KMS("DRM alloc flip_res=%p\n", flip_res);
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	if (bo->gem_object.export_dma_buf != NULL) {
-		struct dma_buf *buf = bo->gem_object.export_dma_buf;
-		unsigned long shared[1] = { 0 };
-		struct kds_resource *resource_list[1] = {
-				get_dma_buf_kds_resource(buf) };
-		int err;
-
-		get_dma_buf(buf);
-		DRM_DEBUG_KMS("Got dma_buf %p\n", buf);
-
-		/* Wait for the KDS resource associated with this buffer */
-		err = kds_async_waitall(&flip_res->kds_res_set,
-					&priv.kds_cb, flip_res, fb, 1, shared,
-					resource_list);
-		BUG_ON(err);
-	} else {
-		struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
-
-		DRM_DEBUG_KMS("No dma_buf for this flip\n");
-
-		/* No dma-buf attached so just call the callback directly */
-		flip_res->kds_res_set = NULL;
-		pl111_crtc->show_framebuffer_cb(flip_res, fb);
-	}
-#else
 	if (bo->gem_object.export_dma_buf != NULL) {
 		struct dma_buf *buf = bo->gem_object.export_dma_buf;
 
@@ -264,7 +209,6 @@ int show_framebuffer_on_crtc(struct drm_crtc *crtc,
 		struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
 		pl111_crtc->show_framebuffer_cb(flip_res, fb);
 	}
-#endif
 
 	/* For the same reasons as the wait at the start of this function,
 	 * wait for the modeset to complete before continuing.
@@ -441,9 +385,6 @@ struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 	pl111_crtc->displaying_fb = NULL;
 	pl111_crtc->last_bpp = 0;
 	pl111_crtc->current_update_res = NULL;
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	pl111_crtc->old_kds_res_set = NULL;
-#endif
 	pl111_crtc->show_framebuffer_cb = show_framebuffer_on_crtc_cb_internal;
 	INIT_LIST_HEAD(&pl111_crtc->update_queue);
 	spin_lock_init(&pl111_crtc->current_displaying_lock);
