@@ -277,7 +277,6 @@ static struct drm_driver driver = {
 	.context_dtor = NULL,
 	.preclose = pl111_drm_preclose,
 	.lastclose = pl111_drm_lastclose,
-	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = pl111_enable_vblank,
 	.disable_vblank = pl111_disable_vblank,
 	.ioctls = NULL,
