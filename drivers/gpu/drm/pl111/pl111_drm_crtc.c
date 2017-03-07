@@ -280,10 +280,15 @@ int show_framebuffer_on_crtc(struct drm_crtc *crtc,
 }
 
 int pl111_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			struct drm_pending_vblank_event *event)
+			 struct drm_pending_vblank_event *event,
+			 uint32_t flags)
 {
 	DRM_DEBUG_KMS("%s: crtc=%p, fb=%p, event=%p\n",
 			__func__, crtc, fb, event);
+
+	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		return -EINVAL;
+
 	return show_framebuffer_on_crtc(crtc, fb, true, event);
 }
 
