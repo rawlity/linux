@@ -95,7 +95,7 @@ struct pl111_drm_encoder *pl111_encoder_create(struct drm_device *dev,
 	}
 
 	drm_encoder_init(dev, &pl111_encoder->encoder, &encoder_funcs,
-				DRM_MODE_ENCODER_DAC);
+			 DRM_MODE_ENCODER_DAC, NULL);
 
 	drm_encoder_helper_add(&pl111_encoder->encoder, &encoder_helper_funcs);
 
