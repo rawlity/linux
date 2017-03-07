@@ -362,10 +362,29 @@ void pl111_crtc_destroy(struct drm_crtc *crtc)
 	kfree(pl111_crtc);
 }
 
+/*
+ * pl111 does not have a proper HW counter for vblank IRQs so enable_vblank
+ * and disable_vblank are just no op callbacks.
+ */
+static int pl111_enable_vblank(struct drm_crtc *crtc)
+{
+	DRM_DEBUG_KMS("%s: dev=%p, crtc=%d", __func__, crtc->dev,
+		      drm_crtc_index(crtc));
+	return 0;
+}
+
+static void pl111_disable_vblank(struct drm_crtc *crtc)
+{
+	DRM_DEBUG_KMS("%s: dev=%p, crtc=%d", __func__, crtc->dev,
+		      drm_crtc_index(crtc));
+}
+
 const struct drm_crtc_funcs crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.page_flip = pl111_crtc_page_flip,
-	.destroy = pl111_crtc_destroy
+	.destroy = pl111_crtc_destroy,
+	.enable_vblank = pl111_enable_vblank,
+	.disable_vblank = pl111_disable_vblank,
 };
 
 const struct drm_crtc_helper_funcs crtc_helper_funcs = {

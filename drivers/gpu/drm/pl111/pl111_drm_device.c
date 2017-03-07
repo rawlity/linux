@@ -73,21 +73,6 @@ void pl111_drm_lastclose(struct drm_device *dev)
 	DRM_DEBUG_KMS("DRM %s on dev=%p\n", __func__, dev);
 }
 
-/*
- * pl111 does not have a proper HW counter for vblank IRQs so enable_vblank
- * and disable_vblank are just no op callbacks.
- */
-static int pl111_enable_vblank(struct drm_device *dev, int crtc)
-{
-	DRM_DEBUG_KMS("%s: dev=%p, crtc=%d", __func__, dev, crtc);
-	return 0;
-}
-
-static void pl111_disable_vblank(struct drm_device *dev, int crtc)
-{
-	DRM_DEBUG_KMS("%s: dev=%p, crtc=%d", __func__, dev, crtc);
-}
-
 struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = pl111_fb_create,
 };
@@ -276,8 +261,6 @@ static struct drm_driver driver = {
 	.context_dtor = NULL,
 	.preclose = pl111_drm_preclose,
 	.lastclose = pl111_drm_lastclose,
-	.enable_vblank = pl111_enable_vblank,
-	.disable_vblank = pl111_disable_vblank,
 	.ioctls = NULL,
 	.fops = &drm_fops,
 	.name = DRIVER_NAME,
