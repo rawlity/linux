@@ -266,7 +266,6 @@ static const struct file_operations drm_fops = {
 	.mmap = pl111_gem_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-	.fasync = drm_fasync,
 };
 
 static struct drm_driver driver = {
