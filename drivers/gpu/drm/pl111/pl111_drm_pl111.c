@@ -123,7 +123,7 @@ void do_flip_to_res(struct pl111_drm_flip_resource *flip_res)
 	DRM_DEBUG_KMS("Displaying fb 0x%p, dumb_bo 0x%p, physaddr %.8x\n",
 			fb, bo, bo->backing_data.dma.fb_dev_addr);
 
-	if (drm_vblank_get(pl111_crtc->crtc.dev, pl111_crtc->crtc_index) < 0)
+	if (drm_crtc_vblank_get(&pl111_crtc->crtc) < 0)
 		DRM_ERROR("Could not get vblank reference for crtc %d\n",
 				pl111_crtc->crtc_index);
 

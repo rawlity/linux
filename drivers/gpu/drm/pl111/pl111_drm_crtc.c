@@ -64,12 +64,11 @@ static void vsync_worker(struct work_struct *work)
 	/* Wake up any processes waiting for page flip event */
 	if (flip_res->event) {
 		spin_lock_bh(&dev->event_lock);
-		drm_send_vblank_event(dev, pl111_crtc->crtc_index,
-					flip_res->event);
+		drm_crtc_send_vblank_event(&pl111_crtc->crtc, flip_res->event);
 		spin_unlock_bh(&dev->event_lock);
 	}
 
-	drm_vblank_put(dev, pl111_crtc->crtc_index);
+	drm_crtc_vblank_put(&pl111_crtc->crtc);
 
 	/*
 	 * workqueue.c:process_one_work():
