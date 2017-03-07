@@ -98,7 +98,7 @@ const struct drm_framebuffer_funcs fb_funcs = {
 
 struct drm_framebuffer *pl111_fb_create(struct drm_device *dev,
 					struct drm_file *file_priv,
-					struct drm_mode_fb_cmd2 *mode_cmd)
+					const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct pl111_drm_framebuffer *pl111_fb = NULL;
 	struct drm_framebuffer *fb = NULL;

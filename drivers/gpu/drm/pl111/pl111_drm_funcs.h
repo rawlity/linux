@@ -66,7 +66,7 @@ void pl111_encoder_destroy(struct drm_encoder *encoder);
 /* Frame Buffer Functions */
 struct drm_framebuffer *pl111_fb_create(struct drm_device *dev,
 					struct drm_file *file_priv,
-					struct drm_mode_fb_cmd2 *mode_cmd);
+					const struct drm_mode_fb_cmd2 *mode_cmd);
 
 /* VMA Functions */
 int pl111_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
