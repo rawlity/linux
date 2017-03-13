@@ -231,7 +231,6 @@ int pl111_drm_init(struct platform_device *dev)
 		DRIVER_NAME, DRIVER_MAJOR, DRIVER_MINOR);
 	driver.num_ioctls = 0;
 	ret = 0;
-	driver.kdriver.platform_device = dev;
 	return drm_platform_init(&driver, dev);
 
 }
