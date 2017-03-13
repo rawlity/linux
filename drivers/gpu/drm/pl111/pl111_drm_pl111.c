@@ -62,9 +62,6 @@ void do_flip_to_res(struct pl111_drm_flip_resource *flip_res)
 				pl111_crtc->crtc_index);
 
 	/* Set the scanout buffer */
-	writel(bo->backing_data.dma.fb_dev_addr, priv.regs + CLCD_UBAS);
-	writel(bo->backing_data.dma.fb_dev_addr +
-		((fb->height - 1) * fb->pitches[0]), priv.regs + CLCD_LBAS);
 }
 
 void

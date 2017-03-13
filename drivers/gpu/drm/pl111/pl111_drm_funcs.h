@@ -45,6 +45,8 @@ int show_framebuffer_on_crtc(struct drm_crtc *crtc,
 /* Common IRQ handler */
 void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc);
 
+int pl111_primary_plane_init(struct drm_device *dev);
+
 int pl111_cursor_plane_init(struct drm_device *dev,
 			struct pl111_drm_cursor_plane *cursor,
 			unsigned long possible_crtcs);

@@ -320,12 +320,17 @@ void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 
 	/* Enable and Power Up */
 	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
+	/* XXX: Choose format correctly by propagating it from the primary plane's atomic state.
+	 */
+	/*
 	if (crtc->state->fb->format->format == DRM_FORMAT_RGB565)
 		cntl |= CNTL_LCDBPP16_565;
 	else if (crtc->state->fb->format->format == DRM_FORMAT_XRGB8888)
 		cntl |= CNTL_LCDBPP24;
 	else
 		BUG_ON(1);
+	*/
+	cntl |= CNTL_LCDBPP24;
 
 	cntl |= CNTL_BGR;
 
