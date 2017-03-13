@@ -64,53 +64,9 @@
 
 #define CLCD_IRQ_NEXTBASE_UPDATE (1u<<2)
 
-struct pl111_drm_flip_resource;
 struct pl111_drm_cursor_plane;
 
-enum pl111_bo_type {
-	PL111_BOT_DMA,
-	PL111_BOT_SHM
-};
-
-struct pl111_gem_bo_dma {
-	dma_addr_t fb_dev_addr;
-	void *fb_cpu_addr;
-};
-
-struct pl111_gem_bo_shm {
-	struct page **pages;
-	dma_addr_t *dma_addrs;
-};
-
-struct pl111_gem_bo {
-	struct drm_gem_object gem_object;
-	enum pl111_bo_type type;
-	union {
-		struct pl111_gem_bo_dma dma;
-		struct pl111_gem_bo_shm shm;
-	} backing_data;
-	struct drm_framebuffer *fb;
-};
-
 extern struct pl111_drm_dev_private priv;
-
-struct pl111_drm_framebuffer {
-	struct drm_framebuffer fb;
-	struct pl111_gem_bo *bo;
-};
-
-struct pl111_drm_flip_resource {
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	struct kds_resource_set *kds_res_set;
-	int worker_release_kds;
-#endif
-	struct drm_framebuffer *fb;
-	struct drm_crtc *crtc;
-	struct work_struct vsync_work;
-	struct list_head link;
-	bool page_flip;
-	struct drm_pending_vblank_event *event;
-};
 
 #define MAX_CURSOR_FORMATS (1)
 
@@ -181,9 +137,6 @@ struct pl111_drm_dev_private {
 	struct mutex export_dma_buf_lock;
 
 	uint32_t number_crtcs;
-
-	/* Cache for flip resources used to avoid kmalloc on each page flip */
-	struct kmem_cache *page_flip_slab;
 };
 
 enum pl111_cursor_size {

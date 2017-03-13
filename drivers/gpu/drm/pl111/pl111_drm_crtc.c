@@ -26,6 +26,7 @@
 #include <linux/module.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "pl111_drm.h"
@@ -61,208 +62,9 @@ static void pl111_convert_drm_mode_to_timing(const struct drm_display_mode *mode
 	timing->pixclock = mode->clock * 1000;
 }
 
-static void vsync_worker(struct work_struct *work)
-{
-	struct pl111_drm_flip_resource *flip_res;
-	struct pl111_gem_bo *bo;
-	struct pl111_drm_crtc *pl111_crtc;
-	struct drm_device *dev;
-	int flips_in_flight;
-	flip_res =
-		container_of(work, struct pl111_drm_flip_resource, vsync_work);
-
-	pl111_crtc = to_pl111_crtc(flip_res->crtc);
-	dev = pl111_crtc->crtc.dev;
-
-	DRM_DEBUG_KMS("DRM Finalizing flip_res=%p\n", flip_res);
-
-	bo = PL111_BO_FROM_FRAMEBUFFER(flip_res->fb);
-	/* Release DMA buffer on this flip */
-	if (bo->gem_object.export_dma_buf != NULL)
-		dma_buf_put(bo->gem_object.export_dma_buf);
-
-	/* Wake up any processes waiting for page flip event */
-	if (flip_res->event) {
-		spin_lock_bh(&dev->event_lock);
-		drm_crtc_send_vblank_event(&pl111_crtc->crtc, flip_res->event);
-		spin_unlock_bh(&dev->event_lock);
-	}
-
-	drm_crtc_vblank_put(&pl111_crtc->crtc);
-
-	/*
-	 * workqueue.c:process_one_work():
-	 * "It is permissible to free the struct work_struct from
-	 *  inside the function that is called from it"
-	 */
-	kmem_cache_free(priv.page_flip_slab, flip_res);
-
-	flips_in_flight = atomic_dec_return(&priv.nr_flips_in_flight);
-	if (flips_in_flight == 0 ||
-			flips_in_flight == (NR_FLIPS_IN_FLIGHT_THRESHOLD - 1))
-		wake_up(&priv.wait_for_flips);
-
-	DRM_DEBUG_KMS("DRM release flip_res=%p\n", flip_res);
-}
-
 void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc)
 {
-	unsigned long irq_flags;
-
 	drm_handle_vblank(pl111_crtc->crtc.dev, pl111_crtc->crtc_index);
-
-	spin_lock_irqsave(&pl111_crtc->base_update_lock, irq_flags);
-
-	if (pl111_crtc->current_update_res != NULL) {
-		/*
-		 * Release dma_buf and resource
-		 * (if not already released)
-		 */
-		queue_work(pl111_crtc->vsync_wq,
-			&pl111_crtc->current_update_res->vsync_work);
-		pl111_crtc->current_update_res = NULL;
-	}
-
-	if (!list_empty(&pl111_crtc->update_queue)) {
-		struct pl111_drm_flip_resource *flip_res;
-		/* Remove the head of the list */
-		flip_res = list_first_entry(&pl111_crtc->update_queue,
-			struct pl111_drm_flip_resource, link);
-		list_del(&flip_res->link);
-		do_flip_to_res(flip_res);
-		/*
-		 * current_update_res will be set, so guarentees that
-		 * another flip_res coming in gets queued instead of
-		 * handled immediately
-		 */
-	}
-
-	spin_unlock_irqrestore(&pl111_crtc->base_update_lock, irq_flags);
-}
-
-void show_framebuffer_on_crtc_cb(void *cb1, void *cb2)
-{
-	struct pl111_drm_flip_resource *flip_res = cb1;
-	struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(flip_res->crtc);
-
-	pl111_crtc->show_framebuffer_cb(cb1, cb2);
-}
-
-int show_framebuffer_on_crtc(struct drm_crtc *crtc,
-				struct drm_framebuffer *fb, bool page_flip,
-				struct drm_pending_vblank_event *event)
-{
-	struct pl111_gem_bo *bo;
-	struct pl111_drm_flip_resource *flip_res;
-	int flips_in_flight;
-	int old_flips_in_flight;
-
-	crtc->fb = fb;
-
-	bo = PL111_BO_FROM_FRAMEBUFFER(fb);
-	if (bo == NULL) {
-		DRM_DEBUG_KMS("Failed to get pl111_gem_bo object\n");
-		return -EINVAL;
-	}
-
-	/* If this is a full modeset, wait for all outstanding flips to complete
-	 * before continuing. This avoids unnecessary complication from being
-	 * able to queue up multiple modesets and queues of mixed modesets and
-	 * page flips.
-	 *
-	 * Modesets should be uncommon and will not be performant anyway, so
-	 * making them synchronous should have negligible performance impact.
-	 */
-	if (!page_flip) {
-		int ret = wait_event_killable(priv.wait_for_flips,
-				atomic_read(&priv.nr_flips_in_flight) == 0);
-		if (ret)
-			return ret;
-	}
-
-	/*
-	 * There can be more 'early display' flips in flight than there are
-	 * buffers, and there is (currently) no explicit bound on the number of
-	 * flips. Hence, we need a new allocation for each one.
-	 *
-	 * Note: this could be optimized down if we knew a bound on the flips,
-	 * since an application can only have so many buffers in flight to be
-	 * useful/not hog all the memory
-	 */
-	flip_res = kmem_cache_alloc(priv.page_flip_slab, GFP_KERNEL);
-	if (flip_res == NULL) {
-		pr_err("kmem_cache_alloc failed to alloc - flip ignored\n");
-		return -ENOMEM;
-	}
-
-	/*
-	 * increment flips in flight, whilst blocking when we reach
-	 * NR_FLIPS_IN_FLIGHT_THRESHOLD
-	 */
-	do {
-		/*
-		 * Note: use of assign-and-then-compare in the condition to set
-		 * flips_in_flight
-		 */
-		int ret = wait_event_killable(priv.wait_for_flips,
-				(flips_in_flight =
-					atomic_read(&priv.nr_flips_in_flight))
-				< NR_FLIPS_IN_FLIGHT_THRESHOLD);
-		if (ret != 0) {
-			kmem_cache_free(priv.page_flip_slab, flip_res);
-			return ret;
-		}
-
-		old_flips_in_flight = atomic_cmpxchg(&priv.nr_flips_in_flight,
-					flips_in_flight, flips_in_flight + 1);
-	} while (old_flips_in_flight != flips_in_flight);
-
-	flip_res->fb = fb;
-	flip_res->crtc = crtc;
-	flip_res->page_flip = page_flip;
-	flip_res->event = event;
-	INIT_WORK(&flip_res->vsync_work, vsync_worker);
-	INIT_LIST_HEAD(&flip_res->link);
-	DRM_DEBUG_KMS("DRM alloc flip_res=%p\n", flip_res);
-	if (bo->gem_object.export_dma_buf != NULL) {
-		struct dma_buf *buf = bo->gem_object.export_dma_buf;
-
-		get_dma_buf(buf);
-		DRM_DEBUG_KMS("Got dma_buf %p\n", buf);
-	} else {
-		DRM_DEBUG_KMS("No dma_buf for this flip\n");
-	}
-
-	/* No dma-buf attached to this so just call the callback directly */
-	{
-		struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
-		pl111_crtc->show_framebuffer_cb(flip_res, fb);
-	}
-
-	/* For the same reasons as the wait at the start of this function,
-	 * wait for the modeset to complete before continuing.
-	 */
-	if (!page_flip) {
-		int ret = wait_event_killable(priv.wait_for_flips,
-				flips_in_flight == 0);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-int pl111_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			 struct drm_pending_vblank_event *event,
-			 uint32_t flags)
-{
-	DRM_DEBUG_KMS("%s: crtc=%p, fb=%p, event=%p\n",
-			__func__, crtc, fb, event);
-
-	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		return -EINVAL;
-
-	return show_framebuffer_on_crtc(crtc, fb, true, event);
 }
 
 void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
@@ -396,7 +198,7 @@ static void pl111_disable_vblank(struct drm_crtc *crtc)
 
 const struct drm_crtc_funcs crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
-	.page_flip = pl111_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = pl111_crtc_destroy,
 	.enable_vblank = pl111_enable_vblank,
 	.disable_vblank = pl111_disable_vblank,
@@ -409,22 +211,6 @@ const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_fixup = pl111_crtc_helper_mode_fixup,
 	.disable = pl111_crtc_helper_disable,
 };
-
-bool pl111_crtc_is_fb_currently_displayed(struct drm_device *dev,
-					struct drm_framebuffer *fb)
-{
-	struct drm_crtc *crtc;
-
-	if (fb == NULL)
-		return false;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
-		if (pl111_crtc->displaying_fb == fb)
-			return true;
-	}
-	return false;
-}
 
 struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 {
@@ -441,18 +227,7 @@ struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 
 	pl111_crtc->crtc_index = pl111_crtc_num;
 	pl111_crtc_num++;
-	pl111_crtc->vsync_wq = alloc_ordered_workqueue("pl111_drm_vsync_%d",
-					WQ_HIGHPRI, pl111_crtc->crtc_index);
-	if (!pl111_crtc->vsync_wq) {
-		pr_err("Failed to allocate vsync workqueue\n");
-		drm_crtc_cleanup(&pl111_crtc->crtc);
-		return NULL;
-	}
 
-	pl111_crtc->crtc.enabled = 0;
-	pl111_crtc->displaying_fb = NULL;
-	pl111_crtc->current_update_res = NULL;
-	pl111_crtc->show_framebuffer_cb = show_framebuffer_on_crtc_cb_internal;
 	INIT_LIST_HEAD(&pl111_crtc->update_queue);
 	spin_lock_init(&pl111_crtc->current_displaying_lock);
 	spin_lock_init(&pl111_crtc->base_update_lock);

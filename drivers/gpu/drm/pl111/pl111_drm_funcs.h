@@ -26,21 +26,10 @@
 int pl111_drm_init(struct platform_device *dev);
 void pl111_drm_exit(struct platform_device *dev);
 
-/* KDS Callbacks */
-void show_framebuffer_on_crtc_cb(void *cb1, void *cb2);
-void release_kds_resource_and_display(struct pl111_drm_flip_resource *flip_res);
-
 /* CRTC Functions */
 struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev);
 struct pl111_drm_crtc *pl111_crtc_dummy_create(struct drm_device *dev);
 void pl111_crtc_destroy(struct drm_crtc *crtc);
-
-bool pl111_crtc_is_fb_currently_displayed(struct drm_device *dev,
-					struct drm_framebuffer *fb);
-
-int show_framebuffer_on_crtc(struct drm_crtc *crtc,
-			struct drm_framebuffer *fb, bool page_flip,
-			struct drm_pending_vblank_event *event);
 
 /* Common IRQ handler */
 void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc);
@@ -80,9 +69,6 @@ int pl111_dumb_create(struct drm_file *file_priv,
 		      struct drm_mode_create_dumb *args);
 
 /* Pl111 Functions */
-void show_framebuffer_on_crtc_cb_internal(struct pl111_drm_flip_resource
-					*flip_res, struct drm_framebuffer *fb);
-void do_flip_to_res(struct pl111_drm_flip_resource *flip_res);
 int pl111_amba_probe(struct amba_device *dev, const struct amba_id *id);
 int pl111_amba_remove(struct amba_device *dev);
 

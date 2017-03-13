@@ -116,25 +116,12 @@ static int pl111_drm_load(struct drm_device *dev, unsigned long chipset)
 
 	pr_info("DRM %s\n", __func__);
 
-	mutex_init(&priv.export_dma_buf_lock);
-	atomic_set(&priv.nr_flips_in_flight, 0);
-	init_waitqueue_head(&priv.wait_for_flips);
-
-	/* Create a cache for page flips */
-	priv.page_flip_slab = kmem_cache_create("page flip slab",
-			sizeof(struct pl111_drm_flip_resource), 0, 0, NULL);
-	if (priv.page_flip_slab == NULL) {
-		DRM_ERROR("Failed to create slab\n");
-		ret = -ENOMEM;
-		goto out_kds_callbacks;
-	}
-
 	dev->dev_private = &priv;
 
 	ret = pl111_modeset_init(dev);
 	if (ret != 0) {
 		pr_err("Failed to init modeset\n");
-		goto out_slab;
+		goto finish;
 	}
 
 	ret = pl111_device_init(dev);
@@ -155,9 +142,6 @@ out_vblank:
 	pl111_device_fini(dev);
 out_modeset:
 	pl111_modeset_fini(dev);
-out_slab:
-	kmem_cache_destroy(priv.page_flip_slab);
-out_kds_callbacks:
 finish:
 	DRM_DEBUG_KMS("pl111_drm_load returned %d\n", ret);
 	return ret;
@@ -166,8 +150,6 @@ finish:
 static void pl111_drm_unload(struct drm_device *dev)
 {
 	pr_info("DRM %s\n", __func__);
-
-	kmem_cache_destroy(priv.page_flip_slab);
 
 	drm_vblank_cleanup(dev);
 	pl111_modeset_fini(dev);
