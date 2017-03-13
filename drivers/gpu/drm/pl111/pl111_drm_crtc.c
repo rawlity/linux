@@ -92,8 +92,8 @@ void pl111_crtc_helper_commit(struct drm_crtc *crtc)
 }
 
 bool pl111_crtc_helper_mode_fixup(struct drm_crtc *crtc,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+				  const struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
 {
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
