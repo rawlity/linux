@@ -44,7 +44,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 	struct drm_mode_config *mode_config;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 	struct pl111_drm_connector *pl111_connector;
-	struct pl111_drm_encoder *pl111_encoder;
 	int ret = 0;
 
 	if (priv == NULL)
@@ -74,21 +73,20 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
-	pl111_encoder = pl111_encoder_create(dev, 1);
-	if (pl111_encoder == NULL) {
+	ret = pl111_encoder_init(dev, 1);
+	if (ret) {
 		pr_err("Failed to create pl111_drm_encoder\n");
-		ret = -ENOMEM;
 		goto out_config;
 	}
 
 	ret = drm_mode_connector_attach_encoder(&pl111_connector->connector,
-						&pl111_encoder->encoder);
+						&priv->encoder);
 	if (ret != 0) {
 		DRM_ERROR("Failed to attach encoder\n");
 		goto out_config;
 	}
 
-	pl111_connector->connector.encoder = &pl111_encoder->encoder;
+	pl111_connector->connector.encoder = &priv->encoder;
 
 	ret = pl111_primary_plane_init(dev);
 	if (ret != 0) {

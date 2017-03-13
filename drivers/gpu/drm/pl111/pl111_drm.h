@@ -95,12 +95,10 @@ struct pl111_drm_connector {
 	struct drm_connector connector;
 };
 
-struct pl111_drm_encoder {
-	struct drm_encoder encoder;
-};
-
 struct pl111_drm_dev_private {
 	struct pl111_drm_crtc *pl111_crtc;
+
+	struct drm_encoder encoder;
 
 	struct amba_device *amba_dev;
 	unsigned long mmio_start;
@@ -128,9 +126,6 @@ struct pl111_drm_dev_private {
 };
 
 #define to_pl111_crtc(x) container_of(x, struct pl111_drm_crtc, crtc)
-
-#define PL111_ENCODER_FROM_ENCODER(x) \
-	container_of(x, struct pl111_drm_encoder, encoder)
 
 #define PL111_CONNECTOR_FROM_CONNECTOR(x) \
 	container_of(x, struct pl111_drm_connector, connector)
