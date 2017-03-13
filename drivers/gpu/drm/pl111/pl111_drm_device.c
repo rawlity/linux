@@ -197,7 +197,7 @@ static const struct file_operations drm_fops = {
 
 static struct drm_driver driver = {
 	.driver_features =
-		DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
+		DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
 	.load = pl111_drm_load,
 	.unload = pl111_drm_unload,
 	.context_dtor = NULL,
