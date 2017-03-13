@@ -174,7 +174,7 @@ finish:
 	return ret;
 }
 
-static int pl111_drm_unload(struct drm_device *dev)
+static void pl111_drm_unload(struct drm_device *dev)
 {
 	pr_info("DRM %s\n", __func__);
 
@@ -183,8 +183,6 @@ static int pl111_drm_unload(struct drm_device *dev)
 	drm_vblank_cleanup(dev);
 	pl111_modeset_fini(dev);
 	pl111_device_fini(dev);
-
-	return 0;
 }
 
 static const struct file_operations drm_fops = {
