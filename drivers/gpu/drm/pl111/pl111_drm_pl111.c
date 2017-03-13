@@ -30,65 +30,6 @@
 
 #include "pl111_drm.h"
 
-/* This can't be called from IRQ context, due to clk_get() and board->enable */
-static int clcd_enable(struct drm_framebuffer *fb)
-{
-	__u32 cntl;
-	struct clcd_board *board;
-
-	pr_info("DRM %s\n", __func__);
-
-	clk_prepare_enable(priv.clk);
-
-	/* Enable and Power Up */
-	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
-	if (fb->format->format == DRM_FORMAT_RGB565)
-		cntl |= CNTL_LCDBPP16_565;
-	else if (fb->format->format == DRM_FORMAT_XRGB8888)
-		cntl |= CNTL_LCDBPP24;
-	else
-		BUG_ON(1);
-
-	cntl |= CNTL_BGR;
-
-	writel(cntl, priv.regs + CLCD_PL111_CNTL);
-
-	board = priv.amba_dev->dev.platform_data;
-
-	if (board->enable)
-		board->enable(NULL);
-
-	/* Enable Interrupts */
-	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv.regs + CLCD_PL111_IENB);
-
-	return 0;
-}
-
-int clcd_disable(struct drm_crtc *crtc)
-{
-	struct clcd_board *board;
-	struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
-
-	pr_info("DRM %s\n", __func__);
-
-	/* Disable Interrupts */
-	writel(0x00000000, priv.regs + CLCD_PL111_IENB);
-
-	board = priv.amba_dev->dev.platform_data;
-
-	if (board->disable)
-		board->disable(NULL);
-
-	/* Disable and Power Down */
-	writel(0, priv.regs + CLCD_PL111_CNTL);
-
-	/* Disable clock */
-	clk_disable_unprepare(priv.clk);
-
-	pl111_crtc->last_bpp = 0;
-	return 0;
-}
-
 void do_flip_to_res(struct pl111_drm_flip_resource *flip_res)
 {
 	struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(flip_res->crtc);
@@ -170,30 +111,6 @@ show_framebuffer_on_crtc_cb_internal(struct pl111_drm_flip_resource *flip_res,
 	}
 
 	spin_unlock_irqrestore(&pl111_crtc->base_update_lock, irq_flags);
-
-	if (!flip_res->page_flip && (pl111_crtc->last_bpp == 0 ||
-			pl111_crtc->last_bpp != fb->bits_per_pixel ||
-			!drm_mode_equal(pl111_crtc->new_mode,
-					pl111_crtc->current_mode))) {
-		struct clcd_regs timing;
-
-		pl111_convert_drm_mode_to_timing(pl111_crtc->new_mode, &timing);
-
-		DRM_DEBUG_KMS("Set timing: %08X:%08X:%08X:%08X clk=%ldHz\n",
-				timing.tim0, timing.tim1, timing.tim2,
-				timing.tim3, timing.pixclock);
-
-		/* This is the actual mode setting part */
-		clk_set_rate(priv.clk, timing.pixclock);
-
-		writel(timing.tim0, priv.regs + CLCD_TIM0);
-		writel(timing.tim1, priv.regs + CLCD_TIM1);
-		writel(timing.tim2, priv.regs + CLCD_TIM2);
-		writel(timing.tim3, priv.regs + CLCD_TIM3);
-
-		clcd_enable(fb);
-		pl111_crtc->last_bpp = fb->bits_per_pixel;
-	}
 
 	if (!flip_res->page_flip) {
 		drm_mode_destroy(flip_res->crtc->dev, pl111_crtc->current_mode);
@@ -436,70 +353,4 @@ void pl111_set_cursor_image(u32 *data)
 
 	for (i = 0; i < CLCD_CRSR_IMAGE_MAX_WORDS; i++, data++, cursor_ram++)
 		writel(*data, cursor_ram);
-}
-
-void pl111_convert_drm_mode_to_timing(struct drm_display_mode *mode,
-					struct clcd_regs *timing)
-{
-	unsigned int ppl, hsw, hfp, hbp;
-	unsigned int lpp, vsw, vfp, vbp;
-	unsigned int cpl;
-
-	memset(timing, 0, sizeof(struct clcd_regs));
-
-	ppl = (mode->hdisplay / 16) - 1;
-	hsw = mode->hsync_end - mode->hsync_start - 1;
-	hfp = mode->hsync_start - mode->hdisplay - 1;
-	hbp = mode->htotal - mode->hsync_end - 1;
-
-	lpp = mode->vdisplay - 1;
-	vsw = mode->vsync_end - mode->vsync_start - 1;
-	vfp = mode->vsync_start - mode->vdisplay;
-	vbp = mode->vtotal - mode->vsync_end;
-
-	cpl = mode->hdisplay - 1;
-
-	timing->tim0 = (ppl << 2) | (hsw << 8) | (hfp << 16) | (hbp << 24);
-	timing->tim1 = lpp | (vsw << 10) | (vfp << 16) | (vbp << 24);
-	timing->tim2 = TIM2_IVS | TIM2_IHS | TIM2_IPC | TIM2_BCD | (cpl << 16);
-	timing->tim3 = 0;
-
-	timing->pixclock = mode->clock * 1000;
-}
-
-void pl111_convert_timing_to_drm_mode(struct clcd_regs *timing,
-					struct drm_display_mode *mode)
-{
-	unsigned int ppl, hsw, hfp, hbp;
-	unsigned int lpp, vsw, vfp, vbp;
-
-	ppl = (timing->tim0 >> 2) & 0x3f;
-	hsw = (timing->tim0 >> 8) & 0xff;
-	hfp = (timing->tim0 >> 16) & 0xff;
-	hbp = (timing->tim0 >> 24) & 0xff;
-
-	lpp = timing->tim1 & 0x3ff;
-	vsw = (timing->tim1 >> 10) & 0x3f;
-	vfp = (timing->tim1 >> 16) & 0xff;
-	vbp = (timing->tim1 >> 24) & 0xff;
-
-	mode->hdisplay    = (ppl + 1) * 16;
-	mode->hsync_start = ((ppl + 1) * 16) + hfp + 1;
-	mode->hsync_end   = ((ppl + 1) * 16) + hfp + hsw + 2;
-	mode->htotal      = ((ppl + 1) * 16) + hfp + hsw + hbp + 3;
-	mode->hskew       = 0;
-
-	mode->vdisplay    = lpp + 1;
-	mode->vsync_start = lpp + vfp + 1;
-	mode->vsync_end   = lpp + vfp + vsw + 2;
-	mode->vtotal      = lpp + vfp + vsw + vbp + 2;
-
-	mode->flags = 0;
-
-	mode->width_mm = 0;
-	mode->height_mm = 0;
-
-	mode->clock = timing->pixclock / 1000;
-	mode->hsync = timing->pixclock / mode->htotal;
-	mode->vrefresh = mode->hsync / mode->vtotal;
 }

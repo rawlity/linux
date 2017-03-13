@@ -32,6 +32,35 @@
 
 static int pl111_crtc_num;
 
+static void pl111_convert_drm_mode_to_timing(const struct drm_display_mode *mode,
+					     struct clcd_regs *timing)
+{
+	unsigned int ppl, hsw, hfp, hbp;
+	unsigned int lpp, vsw, vfp, vbp;
+	unsigned int cpl;
+
+	memset(timing, 0, sizeof(struct clcd_regs));
+
+	ppl = (mode->hdisplay / 16) - 1;
+	hsw = mode->hsync_end - mode->hsync_start - 1;
+	hfp = mode->hsync_start - mode->hdisplay - 1;
+	hbp = mode->htotal - mode->hsync_end - 1;
+
+	lpp = mode->vdisplay - 1;
+	vsw = mode->vsync_end - mode->vsync_start - 1;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vbp = mode->vtotal - mode->vsync_end;
+
+	cpl = mode->hdisplay - 1;
+
+	timing->tim0 = (ppl << 2) | (hsw << 8) | (hfp << 16) | (hbp << 24);
+	timing->tim1 = lpp | (vsw << 10) | (vfp << 16) | (vbp << 24);
+	timing->tim2 = TIM2_IVS | TIM2_IHS | TIM2_IPC | TIM2_BCD | (cpl << 16);
+	timing->tim3 = 0;
+
+	timing->pixclock = mode->clock * 1000;
+}
+
 static void vsync_worker(struct work_struct *work)
 {
 	struct pl111_drm_flip_resource *flip_res;
@@ -236,30 +265,18 @@ int pl111_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	return show_framebuffer_on_crtc(crtc, fb, true, event);
 }
 
-int pl111_crtc_helper_mode_set(struct drm_crtc *crtc,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode,
-				int x, int y, struct drm_framebuffer *old_fb)
+void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
-	int ret;
-	struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
-	struct drm_display_mode *duplicated_mode;
+	struct clcd_regs timing;
 
-	DRM_DEBUG_KMS("DRM crtc_helper_mode_set, x=%d y=%d\n",
-			adjusted_mode->hdisplay, adjusted_mode->vdisplay);
+	pl111_convert_drm_mode_to_timing(&crtc->state->mode, &timing);
 
-	duplicated_mode = drm_mode_duplicate(crtc->dev, adjusted_mode);
-	if (!duplicated_mode)
-		return -ENOMEM;
+	clk_set_rate(priv.clk, timing.pixclock);
 
-	pl111_crtc->new_mode = duplicated_mode;
-	ret = show_framebuffer_on_crtc(crtc, crtc->fb, false, NULL);
-	if (ret != 0) {
-		pl111_crtc->new_mode = pl111_crtc->current_mode;
-		drm_mode_destroy(crtc->dev, duplicated_mode);
-	}
-
-	return ret;
+	writel(timing.tim0, priv.regs + CLCD_TIM0);
+	writel(timing.tim1, priv.regs + CLCD_TIM1);
+	writel(timing.tim2, priv.regs + CLCD_TIM2);
+	writel(timing.tim3, priv.regs + CLCD_TIM3);
 }
 
 void pl111_crtc_helper_prepare(struct drm_crtc *crtc)
@@ -292,10 +309,56 @@ bool pl111_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+void pl111_crtc_helper_enable(struct drm_crtc *crtc)
+{
+	__u32 cntl;
+	struct clcd_board *board;
+
+	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
+
+	clk_prepare_enable(priv.clk);
+
+	/* Enable and Power Up */
+	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
+	if (crtc->state->fb->format->format == DRM_FORMAT_RGB565)
+		cntl |= CNTL_LCDBPP16_565;
+	else if (crtc->state->fb->format->format == DRM_FORMAT_XRGB8888)
+		cntl |= CNTL_LCDBPP24;
+	else
+		BUG_ON(1);
+
+	cntl |= CNTL_BGR;
+
+	writel(cntl, priv.regs + CLCD_PL111_CNTL);
+
+	board = priv.amba_dev->dev.platform_data;
+
+	if (board->enable)
+		board->enable(NULL);
+
+	/* Enable Interrupts */
+	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv.regs + CLCD_PL111_IENB);
+}
+
 void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 {
+	struct clcd_board *board;
+
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-	clcd_disable(crtc);
+
+	/* Disable Interrupts */
+	writel(0x00000000, priv.regs + CLCD_PL111_IENB);
+
+	board = priv.amba_dev->dev.platform_data;
+
+	if (board->disable)
+		board->disable(NULL);
+
+	/* Disable and Power Down */
+	writel(0, priv.regs + CLCD_PL111_CNTL);
+
+	/* Disable clock */
+	clk_disable_unprepare(priv.clk);
 }
 
 void pl111_crtc_destroy(struct drm_crtc *crtc)
@@ -335,7 +398,7 @@ const struct drm_crtc_funcs crtc_funcs = {
 };
 
 const struct drm_crtc_helper_funcs crtc_helper_funcs = {
-	.mode_set = pl111_crtc_helper_mode_set,
+	.mode_set_nofb = pl111_crtc_helper_mode_set_nofb,
 	.prepare = pl111_crtc_helper_prepare,
 	.commit = pl111_crtc_helper_commit,
 	.mode_fixup = pl111_crtc_helper_mode_fixup,
@@ -383,7 +446,6 @@ struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 
 	pl111_crtc->crtc.enabled = 0;
 	pl111_crtc->displaying_fb = NULL;
-	pl111_crtc->last_bpp = 0;
 	pl111_crtc->current_update_res = NULL;
 	pl111_crtc->show_framebuffer_cb = show_framebuffer_on_crtc_cb_internal;
 	INIT_LIST_HEAD(&pl111_crtc->update_queue);

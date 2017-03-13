@@ -131,10 +131,6 @@ struct pl111_drm_crtc {
 #endif
 	struct drm_framebuffer *displaying_fb;
 
-	struct drm_display_mode *new_mode;
-	struct drm_display_mode *current_mode;
-	int last_bpp;
-
 	/*
 	 * The resource that caused a base address update. Only one can be
 	 * pending, hence it's != NULL if there's a pending update

@@ -80,7 +80,6 @@ int pl111_dumb_create(struct drm_file *file_priv,
 /* Pl111 Functions */
 void show_framebuffer_on_crtc_cb_internal(struct pl111_drm_flip_resource
 					*flip_res, struct drm_framebuffer *fb);
-int clcd_disable(struct drm_crtc *crtc);
 void do_flip_to_res(struct pl111_drm_flip_resource *flip_res);
 int pl111_amba_probe(struct amba_device *dev, const struct amba_id *id);
 int pl111_amba_remove(struct amba_device *dev);
@@ -99,8 +98,4 @@ void pl111_cursor_enable(void);
 void pl111_cursor_disable(void);
 void pl111_set_cursor_image(u32 *data);
 
-void pl111_convert_drm_mode_to_timing(struct drm_display_mode *mode,
-					struct clcd_regs *timing);
-void pl111_convert_timing_to_drm_mode(struct clcd_regs *timing,
-					struct drm_display_mode *mode);
 #endif /* PL111_DRM_FUNCS_H_ */
