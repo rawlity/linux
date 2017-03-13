@@ -35,17 +35,6 @@
 
 struct pl111_drm_dev_private priv;
 
-
-void pl111_drm_preclose(struct drm_device *dev, struct drm_file *file_priv)
-{
-	DRM_DEBUG_KMS("DRM %s on dev=%p\n", __func__, dev);
-}
-
-void pl111_drm_lastclose(struct drm_device *dev)
-{
-	DRM_DEBUG_KMS("DRM %s on dev=%p\n", __func__, dev);
-}
-
 struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 };
@@ -201,8 +190,6 @@ static struct drm_driver driver = {
 	.load = pl111_drm_load,
 	.unload = pl111_drm_unload,
 	.context_dtor = NULL,
-	.preclose = pl111_drm_preclose,
-	.lastclose = pl111_drm_lastclose,
 	.ioctls = NULL,
 	.fops = &drm_fops,
 	.name = DRIVER_NAME,
