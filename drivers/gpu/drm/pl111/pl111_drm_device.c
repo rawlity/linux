@@ -90,12 +90,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	pl111_connector->connector.encoder = &pl111_encoder->encoder;
 
-	ret = pl111_cursor_plane_init(dev, &priv->pl111_crtc->cursor, 1);
-	if (ret != 0) {
-		pr_err("Failed to init cursor plane\n");
-		goto out_config;
-	}
-
 	goto finish;
 
 out_config:

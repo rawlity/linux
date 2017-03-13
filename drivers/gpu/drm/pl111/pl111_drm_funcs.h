@@ -36,11 +36,6 @@ void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc);
 
 int pl111_primary_plane_init(struct drm_device *dev);
 
-int pl111_cursor_plane_init(struct drm_device *dev,
-			struct pl111_drm_cursor_plane *cursor,
-			unsigned long possible_crtcs);
-void pl111_drm_cursor_plane_destroy(struct drm_plane *plane);
-
 /* Connector Functions */
 struct pl111_drm_connector *pl111_connector_create(struct drm_device *dev);
 void pl111_connector_destroy(struct drm_connector *connector);
@@ -74,16 +69,5 @@ int pl111_amba_remove(struct amba_device *dev);
 
 int pl111_device_init(struct drm_device *dev);
 void pl111_device_fini(struct drm_device *dev);
-
-void pl111_set_cursor_size(enum pl111_cursor_size size);
-void pl111_set_cursor_sync(enum pl111_cursor_sync sync);
-void pl111_set_cursor_index(u32 cursor);
-void pl111_set_cursor_enable(bool enable);
-void pl111_set_cursor_position(u32 x, u32 y);
-void pl111_set_cursor_clipping(u32 x, u32 y);
-void pl111_set_cursor_palette(u32 color0, u32 color1);
-void pl111_cursor_enable(void);
-void pl111_cursor_disable(void);
-void pl111_set_cursor_image(u32 *data);
 
 #endif /* PL111_DRM_FUNCS_H_ */

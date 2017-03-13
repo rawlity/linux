@@ -1,7 +1,6 @@
 pl111_drm-y +=	pl111_drm_device.o \
 		pl111_drm_connector.o \
 		pl111_drm_crtc.o \
-		pl111_drm_cursor.o \
 		pl111_drm_encoder.o \
 		pl111_drm_gem.o \
 		pl111_drm_pl111.o \

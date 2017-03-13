@@ -64,17 +64,7 @@
 
 #define CLCD_IRQ_NEXTBASE_UPDATE (1u<<2)
 
-struct pl111_drm_cursor_plane;
-
 extern struct pl111_drm_dev_private priv;
-
-#define MAX_CURSOR_FORMATS (1)
-
-struct pl111_drm_cursor_plane {
-	struct drm_plane base;
-	uint32_t *formats;
-	uint32_t num_formats_supported;
-};
 
 struct pl111_drm_crtc {
 	struct drm_crtc crtc;
@@ -96,8 +86,6 @@ struct pl111_drm_crtc {
 	struct list_head update_queue;
 
 	struct workqueue_struct *vsync_wq;
-
-	struct pl111_drm_cursor_plane cursor;
 
 	void (*show_framebuffer_cb)(struct pl111_drm_flip_resource *flip_res,
 				struct drm_framebuffer *fb);
@@ -137,16 +125,6 @@ struct pl111_drm_dev_private {
 	struct mutex export_dma_buf_lock;
 
 	uint32_t number_crtcs;
-};
-
-enum pl111_cursor_size {
-	CURSOR_32X32,
-	CURSOR_64X64
-};
-
-enum pl111_cursor_sync {
-	CURSOR_SYNC_NONE,
-	CURSOR_SYNC_VSYNC
 };
 
 #define to_pl111_crtc(x) container_of(x, struct pl111_drm_crtc, crtc)
