@@ -81,8 +81,6 @@ static void vsync_worker(struct work_struct *work)
 	if (bo->gem_object.export_dma_buf != NULL)
 		dma_buf_put(bo->gem_object.export_dma_buf);
 
-	drm_handle_vblank(dev, pl111_crtc->crtc_index);
-
 	/* Wake up any processes waiting for page flip event */
 	if (flip_res->event) {
 		spin_lock_bh(&dev->event_lock);
@@ -110,6 +108,8 @@ static void vsync_worker(struct work_struct *work)
 void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc)
 {
 	unsigned long irq_flags;
+
+	drm_handle_vblank(pl111_crtc->crtc.dev, pl111_crtc->crtc_index);
 
 	spin_lock_irqsave(&pl111_crtc->base_update_lock, irq_flags);
 
