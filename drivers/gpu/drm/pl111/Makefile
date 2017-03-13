@@ -6,7 +6,6 @@ pl111_drm-y +=	pl111_drm_device.o \
 		pl111_drm_gem.o \
 		pl111_drm_pl111.o \
 		pl111_drm_platform.o \
-		pl111_drm_suspend.o \
-		pl111_drm_vma.o
+		pl111_drm_suspend.o
 
 obj-$(CONFIG_DRM_PL111) += pl111_drm.o
