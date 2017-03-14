@@ -43,7 +43,7 @@ struct pl111_drm_connector *pl111_connector_dummy_create(struct drm_device
 								*dev);
 
 /* Encoder Functions */
-int pl111_encoder_init(struct drm_device *dev, int possible_crtcs);
+int pl111_encoder_init(struct drm_device *dev);
 
 /* Frame Buffer Functions */
 struct drm_framebuffer *pl111_fb_create(struct drm_device *dev,

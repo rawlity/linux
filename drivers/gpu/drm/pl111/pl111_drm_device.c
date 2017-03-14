@@ -73,8 +73,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
-	priv->number_crtcs = 1;
-
 	pl111_connector = pl111_connector_create(dev);
 	if (pl111_connector == NULL) {
 		pr_err("Failed to create pl111_drm_connector\n");
@@ -82,7 +80,7 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
-	ret = pl111_encoder_init(dev, 1);
+	ret = pl111_encoder_init(dev);
 	if (ret) {
 		pr_err("Failed to create pl111_drm_encoder\n");
 		goto out_config;

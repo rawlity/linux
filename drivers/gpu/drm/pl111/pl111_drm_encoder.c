@@ -33,7 +33,7 @@ static const struct drm_encoder_funcs pl111_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-int pl111_encoder_init(struct drm_device *dev, int possible_crtcs)
+int pl111_encoder_init(struct drm_device *dev)
 {
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 	struct drm_encoder *encoder = &priv->encoder;
@@ -44,8 +44,8 @@ int pl111_encoder_init(struct drm_device *dev, int possible_crtcs)
 	if (ret)
 		return ret;
 
-	encoder->possible_crtcs = possible_crtcs;
+	encoder->crtc = &priv->pl111_crtc->crtc;
+	encoder->possible_crtcs = BIT(drm_crtc_index(encoder->crtc));
 
 	return 0;
 }
-
