@@ -26,6 +26,7 @@
 #include <linux/module.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "pl111_drm.h"
@@ -59,41 +60,6 @@ enum drm_connector_status pl111_connector_detect(struct drm_connector
 	return connector_status_connected;
 }
 
-int pl111_connector_dpms(struct drm_connector *connector, int mode)
-{
-	DRM_DEBUG_KMS("DRM %s on connector=%p\n", __func__, connector);
-
-	return 0;
-}
-
-struct drm_encoder *
-pl111_connector_helper_best_encoder(struct drm_connector *connector)
-{
-	DRM_DEBUG_KMS("DRM %s on connector=%p\n", __func__, connector);
-
-	if (connector->encoder != NULL) {
-		return connector->encoder; /* Return attached encoder */
-	} else {
-		/*
-		 * If there is no attached encoder we choose the best candidate
-		 * from the list.
-		 * For PL111 there is only one encoder so we return the first
-		 * one we find.
-		 * Other h/w would require a suitable criterion below.
-		 */
-		struct drm_encoder *encoder = NULL;
-		struct drm_device *dev = connector->dev;
-
-		list_for_each_entry(encoder, &dev->mode_config.encoder_list,
-					head) {
-			if (1) { /* criterion ? */
-				break;
-			}
-		}
-		return encoder; /* return best candidate encoder */
-	}
-}
-
 int pl111_connector_helper_get_modes(struct drm_connector *connector)
 {
 	int i = 0;
@@ -123,24 +89,15 @@ int pl111_connector_helper_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-int pl111_connector_helper_mode_valid(struct drm_connector *connector,
-					struct drm_display_mode *mode)
-{
-	DRM_DEBUG_KMS("DRM %s on connector=%p\n", __func__, connector);
-	return MODE_OK;
-}
-
 const struct drm_connector_funcs connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = pl111_connector_destroy,
 	.detect = pl111_connector_detect,
-	.dpms = pl111_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 };
 
 const struct drm_connector_helper_funcs connector_helper_funcs = {
 	.get_modes = pl111_connector_helper_get_modes,
-	.mode_valid = pl111_connector_helper_mode_valid,
-	.best_encoder = pl111_connector_helper_best_encoder,
 };
 
 struct pl111_drm_connector *pl111_connector_create(struct drm_device *dev)
