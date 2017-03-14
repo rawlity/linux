@@ -60,6 +60,12 @@ static int pl111_modeset_init(struct drm_device *dev)
 	mode_config->min_height = 1;
 	mode_config->max_height = 768;
 
+	ret = pl111_primary_plane_init(dev);
+	if (ret != 0) {
+		pr_err("Failed to init primary plane\n");
+		goto out_config;
+	}
+
 	priv->pl111_crtc = pl111_crtc_create(dev);
 	if (priv->pl111_crtc == NULL) {
 		pr_err("Failed to create pl111_drm_crtc\n");
@@ -90,12 +96,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 	}
 
 	pl111_connector->connector.encoder = &priv->encoder;
-
-	ret = pl111_primary_plane_init(dev);
-	if (ret != 0) {
-		pr_err("Failed to init primary plane\n");
-		goto out_config;
-	}
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret != 0) {

@@ -218,6 +218,7 @@ const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 
 struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 {
+	struct pl111_drm_dev_private *priv = dev->dev_private;
 	struct pl111_drm_crtc *pl111_crtc;
 
 	pl111_crtc = kzalloc(sizeof(struct pl111_drm_crtc), GFP_KERNEL);
@@ -226,7 +227,9 @@ struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 		return NULL;
 	}
 
-	drm_crtc_init(dev, &pl111_crtc->crtc, &crtc_funcs);
+	drm_crtc_init_with_planes(dev, &pl111_crtc->crtc,
+				  &priv->primary, NULL,
+				  &crtc_funcs, "primary");
 	drm_crtc_helper_add(&pl111_crtc->crtc, &crtc_helper_funcs);
 
 	pl111_crtc->crtc_index = pl111_crtc_num;
@@ -238,4 +241,3 @@ struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 
 	return pl111_crtc;
 }
-

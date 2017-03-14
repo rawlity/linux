@@ -55,6 +55,7 @@ static const struct drm_plane_helper_funcs pl111_primary_plane_helper_funcs = {
 static const struct drm_plane_funcs pl111_primary_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
+	.reset = drm_atomic_helper_plane_reset,
 	.destroy = drm_plane_cleanup,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -62,13 +63,10 @@ static const struct drm_plane_funcs pl111_primary_plane_funcs = {
 
 int pl111_primary_plane_init(struct drm_device *dev)
 {
-	struct drm_plane *plane;
+	struct pl111_drm_dev_private *priv = dev->dev_private;
+	struct drm_plane *plane = &priv->primary;
 	u32 formats[] = { DRM_FORMAT_XRGB8888, DRM_FORMAT_RGB565 };
 	int ret;
-
-	plane = devm_kzalloc(dev->dev, sizeof(*plane), GFP_KERNEL);
-	if (!plane)
-		return -ENOMEM;
 
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &pl111_primary_plane_funcs,

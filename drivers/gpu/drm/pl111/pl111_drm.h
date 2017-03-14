@@ -95,6 +95,7 @@ struct pl111_drm_dev_private {
 	struct pl111_drm_crtc *pl111_crtc;
 
 	struct drm_encoder encoder;
+	struct drm_plane primary;
 	struct drm_fbdev_cma *fbdev;
 
 	struct amba_device *amba_dev;
