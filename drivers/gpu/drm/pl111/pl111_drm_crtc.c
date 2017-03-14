@@ -88,10 +88,14 @@ void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	struct clcd_regs timing;
-
+	int ret;
 	pl111_convert_drm_mode_to_timing(&crtc->state->mode, &timing);
 
-	clk_set_rate(priv->clk, timing.pixclock);
+	ret = clk_set_rate(priv->clk, timing.pixclock);
+	if (ret) {
+		dev_err(&priv->amba_dev->dev,
+			"Failed to set pixel clock rate: %d\n", ret);
+	}
 
 	writel(timing.tim0, priv->regs + CLCD_TIM0);
 	writel(timing.tim1, priv->regs + CLCD_TIM1);
