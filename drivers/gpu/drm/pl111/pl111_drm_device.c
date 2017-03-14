@@ -103,6 +103,8 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
+	drm_mode_config_reset(dev);
+
 	priv->fbdev = drm_fbdev_cma_init(dev, 32,
 					 dev->mode_config.num_connector);
 
