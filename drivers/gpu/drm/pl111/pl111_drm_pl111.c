@@ -61,13 +61,11 @@ irqreturn_t pl111_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int pl111_device_init(struct drm_device *dev)
+int pl111_device_init(struct drm_device *drm)
 {
-	struct pl111_drm_dev_private *priv = dev->dev_private;
+	struct pl111_drm_dev_private *priv = drm->dev_private;
+	struct device *dev = &priv->amba_dev->dev;
 	int ret;
-
-	if (priv == NULL || priv->amba_dev == NULL)
-		return -EINVAL;
 
 	/* set up MMIO for register access */
 	priv->mmio_start = priv->amba_dev->res.start;
@@ -76,7 +74,7 @@ int pl111_device_init(struct drm_device *dev)
 	DRM_DEBUG_KMS("mmio_start=%lu, mmio_len=%u\n", priv->mmio_start,
 			priv->mmio_len);
 
-	priv->regs = ioremap(priv->mmio_start, priv->mmio_len);
+	priv->regs = devm_ioremap(dev, priv->mmio_start, priv->mmio_len);
 	if (priv->regs == NULL) {
 		pr_err("%s failed mmio\n", __func__);
 		return -EINVAL;
@@ -85,31 +83,20 @@ int pl111_device_init(struct drm_device *dev)
 	/* turn off interrupts */
 	writel(0, priv->regs + CLCD_PL111_IENB);
 
-	ret = request_irq(priv->amba_dev->irq[0], pl111_irq, 0,
-			  "pl111_irq_handler", priv);
+	ret = devm_request_irq(dev, priv->amba_dev->irq[0], pl111_irq, 0,
+			       "pl111_irq_handler", priv);
 	if (ret != 0) {
-		pr_err("%s failed %d\n", __func__, ret);
-		goto out_mmio;
+		pr_err("%s failed irq %d\n", __func__, ret);
+		return ret;
 	}
 
-	goto finish;
-
-out_mmio:
-	iounmap(priv->regs);
-finish:
-	DRM_DEBUG_KMS("pl111_device_init returned %d\n", ret);
-	return ret;
+	return 0;
 }
 
 void pl111_device_fini(struct drm_device *dev)
 {
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 	u32 cntl;
-
-	if (priv == NULL || priv->regs == NULL)
-		return;
-
-	free_irq(priv->amba_dev->irq[0], NULL);
 
 	cntl = readl(priv->regs + CLCD_PL111_CNTL);
 
@@ -118,6 +105,4 @@ void pl111_device_fini(struct drm_device *dev)
 
 	cntl &= ~CNTL_LCDPWR;
 	writel(cntl, priv->regs + CLCD_PL111_CNTL);
-
-	iounmap(priv->regs);
 }
