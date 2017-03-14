@@ -55,7 +55,7 @@ static void pl111_convert_drm_mode_to_timing(const struct drm_display_mode *mode
 
 	timing->tim0 = (ppl << 2) | (hsw << 8) | (hfp << 16) | (hbp << 24);
 	timing->tim1 = lpp | (vsw << 10) | (vfp << 16) | (vbp << 24);
-	timing->tim2 = TIM2_IVS | TIM2_IHS | TIM2_IPC | TIM2_BCD | (cpl << 16);
+	timing->tim2 = TIM2_IVS | TIM2_IHS | TIM2_IPC | TIM2_BCD | (cpl << 16) | TIM2_CLKSEL;
 	timing->tim3 = 0;
 
 	timing->pixclock = mode->clock * 1000;
