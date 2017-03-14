@@ -204,6 +204,8 @@ const struct drm_crtc_funcs crtc_funcs = {
 	.destroy = pl111_crtc_destroy,
 	.enable_vblank = pl111_enable_vblank,
 	.disable_vblank = pl111_disable_vblank,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
 };
 
 const struct drm_crtc_helper_funcs crtc_helper_funcs = {

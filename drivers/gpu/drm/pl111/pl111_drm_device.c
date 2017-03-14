@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -37,6 +38,8 @@ struct pl111_drm_dev_private priv;
 
 struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static int pl111_modeset_init(struct drm_device *dev)
