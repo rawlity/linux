@@ -48,7 +48,7 @@ void pl111_connector_destroy(struct drm_connector *connector)
 
 	DRM_DEBUG_KMS("DRM %s on connector=%p\n", __func__, connector);
 
-	drm_sysfs_connector_remove(connector);
+	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(pl111_connector);
 }
@@ -117,8 +117,6 @@ struct pl111_drm_connector *pl111_connector_create(struct drm_device *dev)
 
 	drm_connector_helper_add(&pl111_connector->connector,
 					&connector_helper_funcs);
-
-	drm_sysfs_connector_add(&pl111_connector->connector);
 
 	return pl111_connector;
 }
