@@ -96,3 +96,7 @@
 		brcm,nand-oob-sector-size = <27>;
 	};
 };
+
+&clcd {
+	status = "okay";
+};
