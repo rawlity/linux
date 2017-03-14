@@ -59,8 +59,8 @@ static int pl111_platform_drm_remove(struct platform_device *dev)
 
 static struct amba_id pl111_id_table[] = {
 	{
-	.id = 0x00041110,
-	.mask = 0x000ffffe,
+		.id = 0x00041110,
+		.mask = 0x000ffffe,
 	},
 	{0, 0},
 };
@@ -68,7 +68,7 @@ static struct amba_id pl111_id_table[] = {
 static struct amba_driver pl111_amba_driver = {
 	.drv = {
 		.name = "clcd-pl11x",
-		},
+	},
 	.probe = pl111_amba_probe,
 	.remove = pl111_amba_remove,
 	.id_table = pl111_id_table,
@@ -80,8 +80,8 @@ static struct platform_driver platform_drm_driver = {
 	.suspend = pl111_platform_drm_suspend,
 	.resume = pl111_platform_drm_resume,
 	.driver = {
-			.name = DRIVER_NAME,
-		},
+		.name = DRIVER_NAME,
+	},
 };
 
 static const struct platform_device_info pl111_drm_pdevinfo = {
