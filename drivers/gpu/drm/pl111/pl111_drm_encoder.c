@@ -40,7 +40,7 @@ int pl111_encoder_init(struct drm_device *dev)
 	int ret;
 
 	ret = drm_encoder_init(dev, encoder, &pl111_encoder_funcs,
-			       DRM_MODE_ENCODER_DAC, NULL);
+			       DRM_MODE_ENCODER_DPI, NULL);
 	if (ret)
 		return ret;
 
