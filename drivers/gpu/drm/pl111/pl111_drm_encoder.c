@@ -23,7 +23,6 @@
 #include <linux/version.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
-#include <linux/module.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
