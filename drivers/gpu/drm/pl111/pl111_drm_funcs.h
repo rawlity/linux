@@ -30,9 +30,7 @@ void pl111_drm_exit(struct platform_device *dev);
 struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev);
 struct pl111_drm_crtc *pl111_crtc_dummy_create(struct drm_device *dev);
 void pl111_crtc_destroy(struct drm_crtc *crtc);
-
-/* Common IRQ handler */
-void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc);
+irqreturn_t pl111_irq(int irq, void *data);
 
 int pl111_primary_plane_init(struct drm_device *dev);
 

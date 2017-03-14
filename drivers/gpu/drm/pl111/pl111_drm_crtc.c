@@ -61,9 +61,27 @@ static void pl111_convert_drm_mode_to_timing(const struct drm_display_mode *mode
 	timing->pixclock = mode->clock * 1000;
 }
 
-void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc)
+irqreturn_t pl111_irq(int irq, void *data)
 {
-	drm_handle_vblank(pl111_crtc->crtc.dev, pl111_crtc->crtc_index);
+	struct pl111_drm_dev_private *priv = data;
+	u32 irq_stat;
+	irqreturn_t status = IRQ_NONE;
+
+	irq_stat = readl(priv->regs + CLCD_PL111_MIS);
+
+	if (!irq_stat)
+		return IRQ_NONE;
+
+	if (irq_stat & CLCD_IRQ_NEXTBASE_UPDATE) {
+		drm_crtc_handle_vblank(&priv->pl111_crtc->crtc);
+
+		status = IRQ_HANDLED;
+	}
+
+	/* Clear the interrupt once done */
+	writel(irq_stat, priv->regs + CLCD_PL111_ICR);
+
+	return status;
 }
 
 void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
@@ -143,9 +161,6 @@ void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 
 	if (board->enable)
 		board->enable(NULL);
-
-	/* Enable Interrupts */
-	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv->regs + CLCD_PL111_IENB);
 }
 
 void pl111_crtc_helper_disable(struct drm_crtc *crtc)
@@ -154,9 +169,6 @@ void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 	struct clcd_board *board;
 
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-
-	/* Disable Interrupts */
-	writel(0x00000000, priv->regs + CLCD_PL111_IENB);
 
 	board = priv->amba_dev->dev.platform_data;
 
@@ -198,21 +210,22 @@ static void pl111_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-/*
- * pl111 does not have a proper HW counter for vblank IRQs so enable_vblank
- * and disable_vblank are just no op callbacks.
- */
 static int pl111_enable_vblank(struct drm_crtc *crtc)
 {
-	DRM_DEBUG_KMS("%s: dev=%p, crtc=%d", __func__, crtc->dev,
-		      drm_crtc_index(crtc));
+	struct drm_device *dev = crtc->dev;
+	struct pl111_drm_dev_private *priv = dev->dev_private;
+
+	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv->regs + CLCD_PL111_IENB);
+
 	return 0;
 }
 
 static void pl111_disable_vblank(struct drm_crtc *crtc)
 {
-	DRM_DEBUG_KMS("%s: dev=%p, crtc=%d", __func__, crtc->dev,
-		      drm_crtc_index(crtc));
+	struct drm_device *dev = crtc->dev;
+	struct pl111_drm_dev_private *priv = dev->dev_private;
+
+	writel(0, priv->regs + CLCD_PL111_IENB);
 }
 
 const struct drm_crtc_funcs crtc_funcs = {

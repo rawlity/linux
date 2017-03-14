@@ -29,37 +29,6 @@
 
 #include "pl111_drm.h"
 
-irqreturn_t pl111_irq(int irq, void *data)
-{
-	struct pl111_drm_dev_private *priv = data;
-	u32 irq_stat;
-	struct pl111_drm_crtc *pl111_crtc = priv->pl111_crtc;
-
-	irq_stat = readl(priv->regs + CLCD_PL111_MIS);
-
-	if (!irq_stat)
-		return IRQ_NONE;
-
-	if (irq_stat & CLCD_IRQ_NEXTBASE_UPDATE) {
-		if (pl111_crtc->current_update_res ||
-				!list_empty(&pl111_crtc->update_queue))
-			DRM_DEBUG_KMS("DRM irq %x after base update\n",
-					irq_stat);
-
-		/*
-		 * We don't need to lock here as we don't do any flip-specific
-		 * processing in this function. All these, including locks, is
-		 * done in common_irq handler
-		 */
-		pl111_common_irq(pl111_crtc);
-	}
-
-	/* Clear the interrupt once done */
-	writel(irq_stat, priv->regs + CLCD_PL111_ICR);
-
-	return IRQ_HANDLED;
-}
-
 int pl111_device_init(struct drm_device *drm)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
