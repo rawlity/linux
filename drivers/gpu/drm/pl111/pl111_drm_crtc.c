@@ -69,16 +69,17 @@ void pl111_common_irq(struct pl111_drm_crtc *pl111_crtc)
 
 void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
+	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	struct clcd_regs timing;
 
 	pl111_convert_drm_mode_to_timing(&crtc->state->mode, &timing);
 
-	clk_set_rate(priv.clk, timing.pixclock);
+	clk_set_rate(priv->clk, timing.pixclock);
 
-	writel(timing.tim0, priv.regs + CLCD_TIM0);
-	writel(timing.tim1, priv.regs + CLCD_TIM1);
-	writel(timing.tim2, priv.regs + CLCD_TIM2);
-	writel(timing.tim3, priv.regs + CLCD_TIM3);
+	writel(timing.tim0, priv->regs + CLCD_TIM0);
+	writel(timing.tim1, priv->regs + CLCD_TIM1);
+	writel(timing.tim2, priv->regs + CLCD_TIM2);
+	writel(timing.tim3, priv->regs + CLCD_TIM3);
 }
 
 void pl111_crtc_helper_prepare(struct drm_crtc *crtc)
@@ -113,12 +114,13 @@ bool pl111_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 
 void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 {
+	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	__u32 cntl;
 	struct clcd_board *board;
 
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
-	clk_prepare_enable(priv.clk);
+	clk_prepare_enable(priv->clk);
 
 	/* Enable and Power Up */
 	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
@@ -136,36 +138,37 @@ void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 
 	cntl |= CNTL_BGR;
 
-	writel(cntl, priv.regs + CLCD_PL111_CNTL);
+	writel(cntl, priv->regs + CLCD_PL111_CNTL);
 
-	board = priv.amba_dev->dev.platform_data;
+	board = priv->amba_dev->dev.platform_data;
 
 	if (board->enable)
 		board->enable(NULL);
 
 	/* Enable Interrupts */
-	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv.regs + CLCD_PL111_IENB);
+	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv->regs + CLCD_PL111_IENB);
 }
 
 void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 {
+	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	struct clcd_board *board;
 
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
 	/* Disable Interrupts */
-	writel(0x00000000, priv.regs + CLCD_PL111_IENB);
+	writel(0x00000000, priv->regs + CLCD_PL111_IENB);
 
-	board = priv.amba_dev->dev.platform_data;
+	board = priv->amba_dev->dev.platform_data;
 
 	if (board->disable)
 		board->disable(NULL);
 
 	/* Disable and Power Down */
-	writel(0, priv.regs + CLCD_PL111_CNTL);
+	writel(0, priv->regs + CLCD_PL111_CNTL);
 
 	/* Disable clock */
-	clk_disable_unprepare(priv.clk);
+	clk_disable_unprepare(priv->clk);
 }
 
 void pl111_crtc_destroy(struct drm_crtc *crtc)

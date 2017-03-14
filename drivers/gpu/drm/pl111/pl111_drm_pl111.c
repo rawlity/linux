@@ -32,10 +32,11 @@
 
 irqreturn_t pl111_irq(int irq, void *data)
 {
+	struct pl111_drm_dev_private *priv = data;
 	u32 irq_stat;
-	struct pl111_drm_crtc *pl111_crtc = priv.pl111_crtc;
+	struct pl111_drm_crtc *pl111_crtc = priv->pl111_crtc;
 
-	irq_stat = readl(priv.regs + CLCD_PL111_MIS);
+	irq_stat = readl(priv->regs + CLCD_PL111_MIS);
 
 	if (!irq_stat)
 		return IRQ_NONE;
@@ -55,7 +56,7 @@ irqreturn_t pl111_irq(int irq, void *data)
 	}
 
 	/* Clear the interrupt once done */
-	writel(irq_stat, priv.regs + CLCD_PL111_ICR);
+	writel(irq_stat, priv->regs + CLCD_PL111_ICR);
 
 	return IRQ_HANDLED;
 }
@@ -85,7 +86,7 @@ int pl111_device_init(struct drm_device *dev)
 	writel(0, priv->regs + CLCD_PL111_IENB);
 
 	ret = request_irq(priv->amba_dev->irq[0], pl111_irq, 0,
-				"pl111_irq_handler", NULL);
+			  "pl111_irq_handler", priv);
 	if (ret != 0) {
 		pr_err("%s failed %d\n", __func__, ret);
 		goto out_mmio;
@@ -119,49 +120,4 @@ void pl111_device_fini(struct drm_device *dev)
 	writel(cntl, priv->regs + CLCD_PL111_CNTL);
 
 	iounmap(priv->regs);
-}
-
-int pl111_amba_probe(struct amba_device *dev, const struct amba_id *id)
-{
-	struct clcd_board *board = dev->dev.platform_data;
-	int ret;
-	pr_info("DRM %s\n", __func__);
-
-	if (board == NULL)
-		return -EINVAL;
-
-	ret = amba_request_regions(dev, NULL);
-	if (ret != 0) {
-		DRM_ERROR("CLCD: unable to reserve regs region\n");
-		goto out;
-	}
-
-	priv.amba_dev = dev;
-
-	priv.clk = clk_get(&priv.amba_dev->dev, NULL);
-	if (IS_ERR(priv.clk)) {
-		DRM_ERROR("CLCD: unable to get clk.\n");
-		ret = PTR_ERR(priv.clk);
-		goto clk_err;
-	}
-
-	return 0;
-
-clk_err:
-	amba_release_regions(dev);
-out:
-	return ret;
-}
-
-int pl111_amba_remove(struct amba_device *dev)
-{
-	DRM_DEBUG_KMS("DRM %s\n", __func__);
-
-	clk_put(priv.clk);
-
-	amba_release_regions(dev);
-
-	priv.amba_dev = NULL;
-
-	return 0;
 }

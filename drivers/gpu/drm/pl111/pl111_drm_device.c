@@ -94,6 +94,17 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
+	ret = drm_vblank_init(dev, 1);
+	if (ret != 0) {
+		DRM_ERROR("Failed to init vblank\n");
+		goto out_config;
+	}
+
+	priv->fbdev = drm_fbdev_cma_init(dev, 32,
+					 dev->mode_config.num_connector);
+
+	drm_kms_helper_poll_init(dev);
+
 	goto finish;
 
 out_config:
@@ -101,57 +112,6 @@ out_config:
 finish:
 	DRM_DEBUG("%s returned %d\n", __func__, ret);
 	return ret;
-}
-
-static void pl111_modeset_fini(struct drm_device *dev)
-{
-	drm_mode_config_cleanup(dev);
-}
-
-static int pl111_drm_load(struct drm_device *dev, unsigned long chipset)
-{
-	int ret = 0;
-
-	pr_info("DRM %s\n", __func__);
-
-	dev->dev_private = &priv;
-
-	ret = pl111_modeset_init(dev);
-	if (ret != 0) {
-		pr_err("Failed to init modeset\n");
-		goto finish;
-	}
-
-	ret = pl111_device_init(dev);
-	if (ret != 0) {
-		DRM_ERROR("Failed to init MMIO and IRQ\n");
-		goto out_modeset;
-	}
-
-	ret = drm_vblank_init(dev, 1);
-	if (ret != 0) {
-		DRM_ERROR("Failed to init vblank\n");
-		goto out_vblank;
-	}
-
-	goto finish;
-
-out_vblank:
-	pl111_device_fini(dev);
-out_modeset:
-	pl111_modeset_fini(dev);
-finish:
-	DRM_DEBUG_KMS("pl111_drm_load returned %d\n", ret);
-	return ret;
-}
-
-static void pl111_drm_unload(struct drm_device *dev)
-{
-	pr_info("DRM %s\n", __func__);
-
-	drm_vblank_cleanup(dev);
-	pl111_modeset_fini(dev);
-	pl111_device_fini(dev);
 }
 
 static const struct file_operations drm_fops = {
@@ -164,11 +124,9 @@ static const struct file_operations drm_fops = {
 	.read = drm_read,
 };
 
-static struct drm_driver driver = {
+static struct drm_driver pl111_drm_driver = {
 	.driver_features =
 		DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
-	.load = pl111_drm_load,
-	.unload = pl111_drm_unload,
 	.context_dtor = NULL,
 	.ioctls = NULL,
 	.fops = &drm_fops,
@@ -190,20 +148,107 @@ static struct drm_driver driver = {
 	.gem_prime_export = drm_gem_prime_export,
 };
 
-int pl111_drm_init(struct platform_device *dev)
+static int pl111_amba_probe(struct amba_device *amba_dev,
+			    const struct amba_id *id)
 {
+	struct device *dev = &amba_dev->dev;
+	struct pl111_drm_dev_private *priv;
+	struct drm_device *drm;
 	int ret;
 	pr_info("DRM %s\n", __func__);
-	pr_info("PL111 DRM initialize, driver name: %s, version %d.%d\n",
-		DRIVER_NAME, DRIVER_MAJOR, DRIVER_MINOR);
-	driver.num_ioctls = 0;
-	ret = 0;
-	return drm_platform_init(&driver, dev);
 
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	drm = drm_dev_alloc(&pl111_drm_driver, dev);
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
+	amba_set_drvdata(amba_dev, drm);
+	priv->drm = drm;
+	drm->dev_private = priv;
+
+	ret = amba_request_regions(amba_dev, NULL);
+	if (ret != 0) {
+		DRM_ERROR("CLCD: unable to reserve regs region\n");
+		goto out;
+	}
+
+	priv->amba_dev = amba_dev;
+
+	priv->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(priv->clk)) {
+		DRM_ERROR("CLCD: unable to get clk.\n");
+		ret = PTR_ERR(priv->clk);
+		goto dev_unref;
+	}
+
+	ret = pl111_device_init(drm);
+	if (ret != 0) {
+		DRM_ERROR("Failed to init MMIO and IRQ\n");
+		goto dev_unref;
+	}
+
+	ret = pl111_modeset_init(drm);
+	if (ret != 0) {
+		pr_err("Failed to init modeset\n");
+		goto pl111dev_fini;
+	}
+
+	ret = drm_dev_register(drm, 0);
+	if (ret < 0)
+		goto pl111dev_fini;
+
+	return 0;
+
+pl111dev_fini:
+	pl111_device_fini(drm);
+dev_unref:
+	drm_dev_unref(drm);
+	amba_release_regions(amba_dev);
+out:
+	return ret;
 }
 
-void pl111_drm_exit(struct platform_device *dev)
+static int pl111_amba_remove(struct amba_device *amba_dev)
 {
-	pr_info("DRM %s\n", __func__);
-	drm_platform_exit(&driver, dev);
+	struct drm_device *drm = amba_get_drvdata(amba_dev);
+	struct pl111_drm_dev_private *priv = drm->dev_private;
+
+	drm_dev_unregister(drm);
+	if (priv->fbdev)
+		drm_fbdev_cma_fini(priv->fbdev);
+	drm_mode_config_cleanup(drm);
+	drm_dev_unref(drm);
+
+	pl111_device_fini(drm);
+
+	amba_release_regions(amba_dev);
+
+	return 0;
 }
+
+static struct amba_id pl111_id_table[] = {
+	{
+		.id = 0x00041110,
+		.mask = 0x000ffffe,
+	},
+	{0, 0},
+};
+
+static struct amba_driver pl111_amba_driver = {
+	.drv = {
+		.name = "clcd-pl11x",
+	},
+	.probe = pl111_amba_probe,
+	.remove = pl111_amba_remove,
+	.id_table = pl111_id_table,
+};
+
+module_amba_driver(pl111_amba_driver);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_LICENSE(DRIVER_LICENCE);
+MODULE_ALIAS(DRIVER_ALIAS);

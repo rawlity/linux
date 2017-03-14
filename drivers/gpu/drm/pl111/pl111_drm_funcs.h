@@ -50,19 +50,12 @@ struct drm_framebuffer *pl111_fb_create(struct drm_device *dev,
 					struct drm_file *file_priv,
 					const struct drm_mode_fb_cmd2 *mode_cmd);
 
-/* Suspend Functions */
-int pl111_drm_resume(struct drm_device *dev);
-int pl111_drm_suspend(struct drm_device *dev, pm_message_t state);
-
 /* GEM Functions */
 int pl111_dumb_create(struct drm_file *file_priv,
 		      struct drm_device *dev,
 		      struct drm_mode_create_dumb *args);
 
 /* Pl111 Functions */
-int pl111_amba_probe(struct amba_device *dev, const struct amba_id *id);
-int pl111_amba_remove(struct amba_device *dev);
-
 int pl111_device_init(struct drm_device *dev);
 void pl111_device_fini(struct drm_device *dev);
 
