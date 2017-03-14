@@ -80,7 +80,6 @@ static struct platform_driver platform_drm_driver = {
 	.suspend = pl111_platform_drm_suspend,
 	.resume = pl111_platform_drm_resume,
 	.driver = {
-			.owner = THIS_MODULE,
 			.name = DRIVER_NAME,
 		},
 };
