@@ -127,10 +127,17 @@ static const struct file_operations drm_fops = {
 	.read = drm_read,
 };
 
+static void pl111_lastclose(struct drm_device *dev)
+{
+	struct pl111_drm_dev_private *priv = dev->dev_private;
+
+	drm_fbdev_cma_restore_mode(priv->fbdev);
+}
+
 static struct drm_driver pl111_drm_driver = {
 	.driver_features =
 		DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
-	.context_dtor = NULL,
+	.lastclose = pl111_lastclose,
 	.ioctls = NULL,
 	.fops = &drm_fops,
 	.name = DRIVER_NAME,
