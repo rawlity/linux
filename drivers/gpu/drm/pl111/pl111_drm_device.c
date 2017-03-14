@@ -93,7 +93,7 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	ret = pl111_primary_plane_init(dev);
 	if (ret != 0) {
-		pr_err("Failed to init cursor plane\n");
+		pr_err("Failed to init primary plane\n");
 		goto out_config;
 	}
 
