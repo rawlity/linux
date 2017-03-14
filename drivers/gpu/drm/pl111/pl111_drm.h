@@ -21,9 +21,6 @@
 
 #include <drm/drm_gem.h>
 
-/* Defines for drm_mode_create_dumb flags settings */
-#define PL111_BO_SCANOUT  0x00000001 /* scanout compatible buffer requested */
-
 #define DRIVER_AUTHOR    "ARM Ltd."
 #define DRIVER_NAME      "pl111_drm"
 #define DRIVER_DESC      "DRM module for PL111"
