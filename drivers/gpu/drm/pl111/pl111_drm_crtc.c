@@ -136,8 +136,7 @@ bool pl111_crtc_helper_mode_fixup(struct drm_crtc *crtc,
 void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
-	__u32 cntl;
-	struct clcd_board *board;
+	u32 cntl;
 
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
@@ -145,7 +144,8 @@ void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 
 	/* Enable and Power Up */
 	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
-	/* XXX: Choose format correctly by propagating it from the primary plane's atomic state.
+	/* XXX: Choose format correctly by propagating it from the
+	 * primary plane's atomic state.
 	 */
 	/*
 	if (crtc->state->fb->format->format == DRM_FORMAT_RGB565)
@@ -160,24 +160,13 @@ void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 	cntl |= CNTL_BGR;
 
 	writel(cntl, priv->regs + CLCD_PL111_CNTL);
-
-	board = priv->amba_dev->dev.platform_data;
-
-	if (board->enable)
-		board->enable(NULL);
 }
 
 void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
-	struct clcd_board *board;
 
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-
-	board = priv->amba_dev->dev.platform_data;
-
-	if (board->disable)
-		board->disable(NULL);
 
 	/* Disable and Power Down */
 	writel(0, priv->regs + CLCD_PL111_CNTL);
@@ -250,6 +239,7 @@ const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.atomic_flush = pl111_crtc_helper_atomic_flush,
 	.mode_fixup = pl111_crtc_helper_mode_fixup,
 	.disable = pl111_crtc_helper_disable,
+	.enable = pl111_crtc_helper_enable,
 };
 
 struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
