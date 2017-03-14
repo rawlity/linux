@@ -38,8 +38,23 @@ static void pl111_convert_drm_mode_to_timing(const struct drm_display_mode *mode
 	unsigned int ppl, hsw, hfp, hbp;
 	unsigned int lpp, vsw, vfp, vbp;
 	unsigned int cpl;
+	struct drm_display_mode local_mode = {
+		.hdisplay = 640,
+		.hsync_start = 640 + 60,
+		.hsync_end = 640 + 60 + 70,
+		.htotal = 640 + 60 + 70 + 140,
+
+		.vdisplay = 480,
+		.vsync_start = 480 + 5,
+		.vsync_end = 480 + 5 + 3,
+		.vtotal = 480 + 5 + 3 + 33,
+		.clock = 27000,
+	};
+	mode = &local_mode;
 
 	memset(timing, 0, sizeof(struct clcd_regs));
+
+	/* XXX: Hack in 911360's display for the moment. */
 
 	ppl = (mode->hdisplay / 16) - 1;
 	hsw = mode->hsync_end - mode->hsync_start - 1;
