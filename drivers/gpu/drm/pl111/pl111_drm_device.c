@@ -186,7 +186,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 
 	priv->amba_dev = amba_dev;
 
-	priv->clk = devm_clk_get(dev, NULL);
+	priv->clk = devm_clk_get(dev, "clcdclk");
 	if (IS_ERR(priv->clk)) {
 		DRM_ERROR("CLCD: unable to get clk.\n");
 		ret = PTR_ERR(priv->clk);
