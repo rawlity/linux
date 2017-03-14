@@ -119,8 +119,6 @@ struct pl111_drm_dev_private {
 	 * drm_gem_prime_handle_to_fd
 	 */
 	struct mutex export_dma_buf_lock;
-
-	uint32_t number_crtcs;
 };
 
 #define to_pl111_crtc(x) container_of(x, struct pl111_drm_crtc, crtc)
