@@ -216,7 +216,7 @@ static void pl111_disable_vblank(struct drm_crtc *crtc)
 }
 
 const struct drm_crtc_funcs crtc_funcs = {
-	.set_config = drm_crtc_helper_set_config,
+	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = drm_atomic_helper_crtc_reset,
 	.destroy = pl111_crtc_destroy,
