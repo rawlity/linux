@@ -181,6 +181,23 @@ void pl111_crtc_destroy(struct drm_crtc *crtc)
 	kfree(pl111_crtc);
 }
 
+static void pl111_crtc_helper_atomic_flush(struct drm_crtc *crtc,
+					   struct drm_crtc_state *old_state)
+{
+	struct drm_pending_vblank_event *event = crtc->state->event;
+
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irq(&crtc->dev->event_lock);
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, event);
+		else
+			drm_crtc_send_vblank_event(crtc, event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+	}
+}
+
 /*
  * pl111 does not have a proper HW counter for vblank IRQs so enable_vblank
  * and disable_vblank are just no op callbacks.
@@ -213,6 +230,7 @@ const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_set_nofb = pl111_crtc_helper_mode_set_nofb,
 	.prepare = pl111_crtc_helper_prepare,
 	.commit = pl111_crtc_helper_commit,
+	.atomic_flush = pl111_crtc_helper_atomic_flush,
 	.mode_fixup = pl111_crtc_helper_mode_fixup,
 	.disable = pl111_crtc_helper_disable,
 };
