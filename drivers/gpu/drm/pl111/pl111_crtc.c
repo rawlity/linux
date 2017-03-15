@@ -81,9 +81,15 @@ static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 
 	cpl = mode->hdisplay - 1;
 
-	writel((ppl << 2) | (hsw << 8) | (hfp << 16) | (hbp << 24),
+	writel((ppl << 2) |
+	       (hsw << 8) |
+	       (hfp << 16) |
+	       (hbp << 24),
 	       priv->regs + CLCD_TIM0);
-	writel(lpp | (vsw << 10) | (vfp << 16) | (vbp << 24),
+	writel(lpp |
+	       (vsw << 10) |
+	       (vfp << 16) |
+	       (vbp << 24),
 	       priv->regs + CLCD_TIM1);
 	writel(((mode->flags & DRM_MODE_FLAG_NHSYNC) ? TIM2_IHS : 0) |
 	       ((mode->flags & DRM_MODE_FLAG_NVSYNC) ? TIM2_IVS : 0) |
