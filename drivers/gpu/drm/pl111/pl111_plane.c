@@ -37,7 +37,7 @@ static void pl111_primary_plane_atomic_update(struct drm_plane *plane,
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_gem_cma_object *obj;
-	u32 addr;
+	u32 addr, cntl;
 
 	if (!fb)
 		return;
@@ -49,6 +49,21 @@ static void pl111_primary_plane_atomic_update(struct drm_plane *plane,
 
 	writel(addr, priv->regs + CLCD_UBAS);
 	writel(addr + (fb->height - 1 * fb->pitches[0]), priv->regs + CLCD_LBAS);
+
+	cntl = readl(priv->regs + CLCD_PL111_CNTL);
+	cntl &= ~(7 << 1);
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XRGB8888:
+		cntl |= CNTL_LCDBPP24 | CNTL_BGR;
+		break;
+	case DRM_FORMAT_RGB565:
+		cntl |= CNTL_LCDBPP16_565 | CNTL_BGR;
+		break;
+	}
+
+	writel(cntl, priv->regs + CLCD_PL111_CNTL);
 }
 
 static const struct drm_plane_helper_funcs pl111_primary_plane_helper_funcs = {

@@ -116,20 +116,9 @@ static void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 
 	/* Enable and Power Up */
 	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
-	/* XXX: Choose format correctly by propagating it from the
-	 * primary plane's atomic state.
-	 */
-	/*
-	if (crtc->state->fb->format->format == DRM_FORMAT_RGB565)
-		cntl |= CNTL_LCDBPP16_565;
-	else if (crtc->state->fb->format->format == DRM_FORMAT_XRGB8888)
-		cntl |= CNTL_LCDBPP24;
-	else
-		BUG_ON(1);
-	*/
-	cntl |= CNTL_LCDBPP24;
 
-	cntl |= CNTL_BGR;
+	/* Keep the format that the primary plane had set up. */
+	cntl |= readl(priv->regs + CLCD_PL111_CNTL) & (7 << 1);
 
 	writel(cntl, priv->regs + CLCD_PL111_CNTL);
 }
@@ -141,7 +130,8 @@ void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
 	/* Disable and Power Down */
-	writel(0, priv->regs + CLCD_PL111_CNTL);
+	writel(readl(priv->regs + CLCD_PL111_CNTL) & (7 << 1),
+	       priv->regs + CLCD_PL111_CNTL);
 
 	/* Disable clock */
 	clk_disable_unprepare(priv->clk);
