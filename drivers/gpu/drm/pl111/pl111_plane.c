@@ -53,13 +53,40 @@ static void pl111_primary_plane_atomic_update(struct drm_plane *plane,
 	cntl = readl(priv->regs + CLCD_PL111_CNTL);
 	cntl &= ~(7 << 1);
 
+	/* Note that the the hardware's format reader takes 'r' from
+	 * the low bit, while DRM formats list channels from high bit
+	 * to low bit as you read left to right.
+	 */
 	switch (fb->format->format) {
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_XBGR8888:
+		cntl |= CNTL_LCDBPP24;
+		break;
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB8888:
 		cntl |= CNTL_LCDBPP24 | CNTL_BGR;
 		break;
+	case DRM_FORMAT_BGR565:
+		cntl |= CNTL_LCDBPP16_565;
+		break;
 	case DRM_FORMAT_RGB565:
 		cntl |= CNTL_LCDBPP16_565 | CNTL_BGR;
+		break;
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_XBGR1555:
+		cntl |= CNTL_LCDBPP16;
+		break;
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_XRGB1555:
+		cntl |= CNTL_LCDBPP16 | CNTL_BGR;
+		break;
+	case DRM_FORMAT_ABGR4444:
+	case DRM_FORMAT_XBGR4444:
+		cntl |= CNTL_LCDBPP16_444;
+		break;
+	case DRM_FORMAT_ARGB4444:
+	case DRM_FORMAT_XRGB4444:
+		cntl |= CNTL_LCDBPP16_444 | CNTL_BGR;
 		break;
 	}
 
