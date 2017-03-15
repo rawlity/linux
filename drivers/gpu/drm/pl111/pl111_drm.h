@@ -101,11 +101,6 @@ void pl111_connector_destroy(struct drm_connector *connector);
 /* Encoder Functions */
 int pl111_encoder_init(struct drm_device *dev);
 
-/* Frame Buffer Functions */
-struct drm_framebuffer *pl111_fb_create(struct drm_device *dev,
-					struct drm_file *file_priv,
-					const struct drm_mode_fb_cmd2 *mode_cmd);
-
 /* GEM Functions */
 int pl111_dumb_create(struct drm_file *file_priv,
 		      struct drm_device *dev,
