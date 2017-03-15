@@ -40,7 +40,7 @@ static struct {
 	{  -1,  -1, -1}
 };
 
-void pl111_connector_destroy(struct drm_connector *connector)
+static void pl111_connector_destroy(struct drm_connector *connector)
 {
 	struct pl111_drm_connector *pl111_connector =
 				PL111_CONNECTOR_FROM_CONNECTOR(connector);
@@ -52,14 +52,14 @@ void pl111_connector_destroy(struct drm_connector *connector)
 	kfree(pl111_connector);
 }
 
-enum drm_connector_status pl111_connector_detect(struct drm_connector
+static enum drm_connector_status pl111_connector_detect(struct drm_connector
 							*connector, bool force)
 {
 	DRM_DEBUG_KMS("DRM %s on connector=%p\n", __func__, connector);
 	return connector_status_connected;
 }
 
-int pl111_connector_helper_get_modes(struct drm_connector *connector)
+static int pl111_connector_helper_get_modes(struct drm_connector *connector)
 {
 	int i = 0;
 	int count = 0;

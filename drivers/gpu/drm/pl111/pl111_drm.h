@@ -83,20 +83,14 @@ struct pl111_drm_dev_private {
 #define PL111_CONNECTOR_FROM_CONNECTOR(x) \
 	container_of(x, struct pl111_drm_connector, connector)
 
-/* Platform Initialisation */
-int pl111_drm_init(struct platform_device *dev);
-void pl111_drm_exit(struct platform_device *dev);
-
 /* CRTC Functions */
 int pl111_crtc_create(struct drm_device *dev);
-void pl111_crtc_destroy(struct drm_crtc *crtc);
 irqreturn_t pl111_irq(int irq, void *data);
 
 int pl111_primary_plane_init(struct drm_device *dev);
 
 /* Connector Functions */
 struct pl111_drm_connector *pl111_connector_create(struct drm_device *dev);
-void pl111_connector_destroy(struct drm_connector *connector);
 
 /* Encoder Functions */
 int pl111_encoder_init(struct drm_device *dev);
