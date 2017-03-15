@@ -30,50 +30,6 @@
 
 #include "pl111_drm.h"
 
-static void pl111_convert_drm_mode_to_timing(const struct drm_display_mode *mode,
-					     struct clcd_regs *timing)
-{
-	unsigned int ppl, hsw, hfp, hbp;
-	unsigned int lpp, vsw, vfp, vbp;
-	unsigned int cpl;
-	struct drm_display_mode local_mode = {
-		.hdisplay = 640,
-		.hsync_start = 640 + 60,
-		.hsync_end = 640 + 60 + 70,
-		.htotal = 640 + 60 + 70 + 140,
-
-		.vdisplay = 480,
-		.vsync_start = 480 + 5,
-		.vsync_end = 480 + 5 + 3,
-		.vtotal = 480 + 5 + 3 + 33,
-		.clock = 27000,
-	};
-	mode = &local_mode;
-
-	memset(timing, 0, sizeof(struct clcd_regs));
-
-	/* XXX: Hack in 911360's display for the moment. */
-
-	ppl = (mode->hdisplay / 16) - 1;
-	hsw = mode->hsync_end - mode->hsync_start - 1;
-	hfp = mode->hsync_start - mode->hdisplay - 1;
-	hbp = mode->htotal - mode->hsync_end - 1;
-
-	lpp = mode->vdisplay - 1;
-	vsw = mode->vsync_end - mode->vsync_start - 1;
-	vfp = mode->vsync_start - mode->vdisplay;
-	vbp = mode->vtotal - mode->vsync_end;
-
-	cpl = mode->hdisplay - 1;
-
-	timing->tim0 = (ppl << 2) | (hsw << 8) | (hfp << 16) | (hbp << 24);
-	timing->tim1 = lpp | (vsw << 10) | (vfp << 16) | (vbp << 24);
-	timing->tim2 = TIM2_IVS | TIM2_IHS | TIM2_IPC | TIM2_BCD | (cpl << 16) | TIM2_CLKSEL;
-	timing->tim3 = 0;
-
-	timing->pixclock = mode->clock * 1000;
-}
-
 irqreturn_t pl111_irq(int irq, void *data)
 {
 	struct pl111_drm_dev_private *priv = data;
@@ -100,20 +56,53 @@ irqreturn_t pl111_irq(int irq, void *data)
 static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
-	struct clcd_regs timing;
-	int ret;
-	pl111_convert_drm_mode_to_timing(&crtc->state->mode, &timing);
+	const struct drm_display_mode *mode = &crtc->state->mode;
+	struct drm_display_mode local_mode = {
+		.hdisplay = 640,
+		.hsync_start = 640 + 60,
+		.hsync_end = 640 + 60 + 70,
+		.htotal = 640 + 60 + 70 + 140,
 
-	ret = clk_set_rate(priv->clk, timing.pixclock);
+		.vdisplay = 480,
+		.vsync_start = 480 + 5,
+		.vsync_end = 480 + 5 + 3,
+		.vtotal = 480 + 5 + 3 + 33,
+		.clock = 27000,
+	};
+	unsigned int ppl, hsw, hfp, hbp;
+	unsigned int lpp, vsw, vfp, vbp;
+	unsigned int cpl;
+	int ret;
+
+	/* XXX: Hack in 911360's display for the moment. */
+	mode = &local_mode;
+
+	ret = clk_set_rate(priv->clk, mode->clock * 1000);
 	if (ret) {
 		dev_err(&priv->amba_dev->dev,
 			"Failed to set pixel clock rate: %d\n", ret);
 	}
 
-	writel(timing.tim0, priv->regs + CLCD_TIM0);
-	writel(timing.tim1, priv->regs + CLCD_TIM1);
-	writel(timing.tim2, priv->regs + CLCD_TIM2);
-	writel(timing.tim3, priv->regs + CLCD_TIM3);
+	ppl = (mode->hdisplay / 16) - 1;
+	hsw = mode->hsync_end - mode->hsync_start - 1;
+	hfp = mode->hsync_start - mode->hdisplay - 1;
+	hbp = mode->htotal - mode->hsync_end - 1;
+
+	lpp = mode->vdisplay - 1;
+	vsw = mode->vsync_end - mode->vsync_start - 1;
+	vfp = mode->vsync_start - mode->vdisplay;
+	vbp = mode->vtotal - mode->vsync_end;
+
+	cpl = mode->hdisplay - 1;
+
+	writel((ppl << 2) | (hsw << 8) | (hfp << 16) | (hbp << 24),
+	       priv->regs + CLCD_TIM0);
+	writel(lpp | (vsw << 10) | (vfp << 16) | (vbp << 24),
+	       priv->regs + CLCD_TIM1);
+	writel(TIM2_IVS | TIM2_IHS | TIM2_IPC | TIM2_BCD | (cpl << 16) |
+	       TIM2_CLKSEL,
+	       priv->regs + CLCD_TIM2);
+	writel(0, priv->regs + CLCD_TIM3);
 }
 
 static void pl111_crtc_helper_enable(struct drm_crtc *crtc)
