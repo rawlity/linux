@@ -74,8 +74,6 @@ struct pl111_drm_dev_private {
 	struct drm_fbdev_cma *fbdev;
 
 	struct amba_device *amba_dev;
-	unsigned long mmio_start;
-	__u32 mmio_len;
 	void *regs;
 	struct clk *clk;
 };

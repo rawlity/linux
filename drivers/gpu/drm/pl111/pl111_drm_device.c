@@ -177,12 +177,6 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	priv->drm = drm;
 	drm->dev_private = priv;
 
-	ret = amba_request_regions(amba_dev, NULL);
-	if (ret != 0) {
-		DRM_ERROR("CLCD: unable to reserve regs region\n");
-		goto out;
-	}
-
 	priv->amba_dev = amba_dev;
 
 	priv->clk = devm_clk_get(dev, "clcdclk");
@@ -214,8 +208,6 @@ pl111dev_fini:
 	pl111_device_fini(drm);
 dev_unref:
 	drm_dev_unref(drm);
-	amba_release_regions(amba_dev);
-out:
 	return ret;
 }
 

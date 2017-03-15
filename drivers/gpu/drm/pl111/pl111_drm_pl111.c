@@ -35,14 +35,7 @@ int pl111_device_init(struct drm_device *drm)
 	struct device *dev = &priv->amba_dev->dev;
 	int ret;
 
-	/* set up MMIO for register access */
-	priv->mmio_start = priv->amba_dev->res.start;
-	priv->mmio_len = resource_size(&priv->amba_dev->res);
-
-	DRM_DEBUG_KMS("mmio_start=%lu, mmio_len=%u\n", priv->mmio_start,
-			priv->mmio_len);
-
-	priv->regs = devm_ioremap(dev, priv->mmio_start, priv->mmio_len);
+	priv->regs = devm_ioremap_resource(dev, &priv->amba_dev->res);
 	if (priv->regs == NULL) {
 		pr_err("%s failed mmio\n", __func__);
 		return -EINVAL;
