@@ -55,10 +55,36 @@
 			gpios = <&gpio_asiu 48 0>;
 		};
 	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 50000 0>;
+		brightness-levels = <0 16 24 32 50 64 128 255>;
+		default-brightness-level = <6>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm0_pins>;
+	};
+
+	panel {
+		compatible = "brcm,bcm911360-panel";
+		backlight = <&backlight>;
+
+		port {
+			clcd_panel: endpoint {
+				remote-endpoint = <&clcd_pads>;
+			};
+		};
+	};
 };
 
 &clcd {
 	status = "okay";
+	port {
+		clcd_pads: endpoint {
+			remote-endpoint = <&clcd_panel>;
+			arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+		};
+	};
 };
 
 &eth0 {
@@ -66,6 +92,19 @@
 };
 
 &mdio {
+	status = "okay";
+};
+
+&pinctrl {
+	pwm0_pins: pwm0_pins {
+		mux {
+			function = "pwm0";
+			groups = "pwm0_grp";
+		};
+	};
+};
+
+&pwm {
 	status = "okay";
 };
 
