@@ -1456,6 +1456,31 @@ static const struct panel_desc ontat_yx700wv03 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
+static const struct drm_display_mode bcm911360_mode = {
+	.clock = 27000,
+	.hdisplay = 640,
+	.hsync_start = 640 + 60,
+	.hsync_end = 640 + 60 + 70,
+	.htotal = 640 + 60 + 70 + 140,
+	.vdisplay = 480,
+	.vsync_start = 480 + 5,
+	.vsync_end = 480 + 5 + 3,
+	.vtotal = 480 + 5 + 3 + 33,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_PHSYNC,
+};
+
+static const struct panel_desc bcm911360 = {
+	.modes = &bcm911360_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 154,
+		.height = 83,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+};
+
 static const struct drm_display_mode ortustech_com43h4m85ulc_mode  = {
 	.clock = 25000,
 	.hdisplay = 480,
@@ -1843,6 +1868,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "boe,nv101wxmn51",
 		.data = &boe_nv101wxmn51,
+	}, {
+		.compatible = "brcm,bcm911360-panel",
+		.data = &bcm911360,
 	}, {
 		.compatible = "chunghwa,claa070wp03xg",
 		.data = &chunghwa_claa070wp03xg,
