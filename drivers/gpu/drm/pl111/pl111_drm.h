@@ -100,8 +100,4 @@ int pl111_dumb_create(struct drm_file *file_priv,
 		      struct drm_device *dev,
 		      struct drm_mode_create_dumb *args);
 
-/* Pl111 Functions */
-int pl111_device_init(struct drm_device *dev);
-void pl111_device_fini(struct drm_device *dev);
-
 #endif /* _PL111_DRM_H_ */

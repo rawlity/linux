@@ -186,26 +186,34 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 		goto dev_unref;
 	}
 
-	ret = pl111_device_init(drm);
+	priv->regs = devm_ioremap_resource(dev, &priv->amba_dev->res);
+	if (priv->regs == NULL) {
+		pr_err("%s failed mmio\n", __func__);
+		return -EINVAL;
+	}
+
+	/* turn off interrupts before requesting the irq */
+	writel(0, priv->regs + CLCD_PL111_IENB);
+
+	ret = devm_request_irq(dev, priv->amba_dev->irq[0], pl111_irq, 0,
+			       "pl111_irq_handler", priv);
 	if (ret != 0) {
-		DRM_ERROR("Failed to init MMIO and IRQ\n");
-		goto dev_unref;
+		pr_err("%s failed irq %d\n", __func__, ret);
+		return ret;
 	}
 
 	ret = pl111_modeset_init(drm);
 	if (ret != 0) {
 		pr_err("Failed to init modeset\n");
-		goto pl111dev_fini;
+		goto dev_unref;
 	}
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
-		goto pl111dev_fini;
+		goto dev_unref;
 
 	return 0;
 
-pl111dev_fini:
-	pl111_device_fini(drm);
 dev_unref:
 	drm_dev_unref(drm);
 	return ret;
@@ -221,8 +229,6 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 		drm_fbdev_cma_fini(priv->fbdev);
 	drm_mode_config_cleanup(drm);
 	drm_dev_unref(drm);
-
-	pl111_device_fini(drm);
 
 	amba_release_regions(amba_dev);
 
