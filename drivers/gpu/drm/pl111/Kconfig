@@ -1,6 +1,7 @@
 config DRM_PL111
 	tristate "DRM Support for PL111 CLCD Controller"
 	depends on DRM
+	depends on ARM || ARM64 || COMPILE_TEST
 	depends on ARM_AMBA
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
