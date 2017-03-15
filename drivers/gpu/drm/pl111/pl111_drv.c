@@ -196,7 +196,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	writel(0, priv->regs + CLCD_PL111_IENB);
 
 	ret = devm_request_irq(dev, priv->amba_dev->irq[0], pl111_irq, 0,
-			       "pl111_irq_handler", priv);
+			       "pl111", priv);
 	if (ret != 0) {
 		pr_err("%s failed irq %d\n", __func__, ret);
 		return ret;
