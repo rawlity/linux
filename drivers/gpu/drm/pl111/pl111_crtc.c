@@ -58,6 +58,7 @@ static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	const struct drm_display_mode *mode = &crtc->state->mode;
+	struct drm_connector *connector = &priv->connector.connector;
 	unsigned int ppl, hsw, hfp, hbp;
 	unsigned int lpp, vsw, vfp, vbp;
 	unsigned int cpl;
@@ -93,7 +94,10 @@ static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 	       priv->regs + CLCD_TIM1);
 	writel(((mode->flags & DRM_MODE_FLAG_NHSYNC) ? TIM2_IHS : 0) |
 	       ((mode->flags & DRM_MODE_FLAG_NVSYNC) ? TIM2_IVS : 0) |
-	       TIM2_IPC |
+	       ((connector->display_info.bus_flags &
+		 DRM_BUS_FLAG_DE_LOW) ? TIM2_IOE : 0) |
+	       ((connector->display_info.bus_flags &
+		 DRM_BUS_FLAG_PIXDATA_NEGEDGE) ? TIM2_IPC : 0) |
 	       TIM2_BCD |
 	       (cpl << 16) |
 	       TIM2_CLKSEL,
