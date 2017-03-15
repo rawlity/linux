@@ -55,6 +55,16 @@
 			gpios = <&gpio_asiu 48 0>;
 		};
 	};
+
+	panel {
+		compatible = "brcm,bcm911360-panel";
+
+		port {
+			clcd_panel: endpoint {
+				remote-endpoint = <&clcd_pads>;
+			};
+		};
+	};
 };
 
 &uart3 {
@@ -79,4 +89,10 @@
 
 &clcd {
 	status = "okay";
+	port {
+		clcd_pads: endpoint {
+			remote-endpoint = <&clcd_panel>;
+			arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+		};
+	};
 };
