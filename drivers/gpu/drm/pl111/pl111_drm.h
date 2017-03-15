@@ -83,6 +83,36 @@ struct pl111_drm_dev_private {
 #define PL111_CONNECTOR_FROM_CONNECTOR(x) \
 	container_of(x, struct pl111_drm_connector, connector)
 
-#include "pl111_drm_funcs.h"
+/* Platform Initialisation */
+int pl111_drm_init(struct platform_device *dev);
+void pl111_drm_exit(struct platform_device *dev);
+
+/* CRTC Functions */
+int pl111_crtc_create(struct drm_device *dev);
+void pl111_crtc_destroy(struct drm_crtc *crtc);
+irqreturn_t pl111_irq(int irq, void *data);
+
+int pl111_primary_plane_init(struct drm_device *dev);
+
+/* Connector Functions */
+struct pl111_drm_connector *pl111_connector_create(struct drm_device *dev);
+void pl111_connector_destroy(struct drm_connector *connector);
+
+/* Encoder Functions */
+int pl111_encoder_init(struct drm_device *dev);
+
+/* Frame Buffer Functions */
+struct drm_framebuffer *pl111_fb_create(struct drm_device *dev,
+					struct drm_file *file_priv,
+					const struct drm_mode_fb_cmd2 *mode_cmd);
+
+/* GEM Functions */
+int pl111_dumb_create(struct drm_file *file_priv,
+		      struct drm_device *dev,
+		      struct drm_mode_create_dumb *args);
+
+/* Pl111 Functions */
+int pl111_device_init(struct drm_device *dev);
+void pl111_device_fini(struct drm_device *dev);
 
 #endif /* _PL111_DRM_H_ */
