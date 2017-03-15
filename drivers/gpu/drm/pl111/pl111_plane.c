@@ -16,6 +16,7 @@
 
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/of_graph.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
@@ -108,14 +109,53 @@ static const struct drm_plane_funcs pl111_primary_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
-int pl111_primary_plane_init(struct drm_device *dev)
+int pl111_primary_plane_init(struct drm_device *drm)
 {
-	struct pl111_drm_dev_private *priv = dev->dev_private;
+	struct pl111_drm_dev_private *priv = drm->dev_private;
 	struct drm_plane *plane = &priv->primary;
-	u32 formats[] = { DRM_FORMAT_XRGB8888, DRM_FORMAT_RGB565 };
+	struct device *dev = &priv->amba_dev->dev;
+	static const u32 formats[] = {
+		DRM_FORMAT_ABGR8888,
+		DRM_FORMAT_XBGR8888,
+		DRM_FORMAT_ARGB8888,
+		DRM_FORMAT_XRGB8888,
+		DRM_FORMAT_BGR565,
+		DRM_FORMAT_RGB565,
+		DRM_FORMAT_ABGR1555,
+		DRM_FORMAT_XBGR1555,
+		DRM_FORMAT_ARGB1555,
+		DRM_FORMAT_XRGB1555,
+		DRM_FORMAT_ABGR4444,
+		DRM_FORMAT_XBGR4444,
+		DRM_FORMAT_ARGB4444,
+		DRM_FORMAT_XRGB4444,
+	};
+	struct device_node *endpoint;
+	u32 tft_r0b0g0[3];
 	int ret;
 
-	ret = drm_universal_plane_init(dev, plane, 0,
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint)
+		return -ENODEV;
+
+	if (of_property_read_u32_array(endpoint,
+				       "arm,pl11x,tft-r0g0b0-pads",
+				       tft_r0b0g0,
+				       ARRAY_SIZE(tft_r0b0g0)) != 0) {
+		DRM_ERROR("arm,pl11x,tft-r0g0b0-pads should be 3 ints\n");
+		of_node_put(endpoint);
+		return -ENOENT;
+	}
+	of_node_put(endpoint);
+
+	if (tft_r0b0g0[0] != 0 ||
+	    tft_r0b0g0[1] != 8 ||
+	    tft_r0b0g0[2] != 16) {
+		DRM_ERROR("arm,pl11x,tft-r0g0b0-pads != [0,8,16] not yet supported\n");
+		return -EINVAL;
+	}
+
+	ret = drm_universal_plane_init(drm, plane, 0,
 				       &pl111_primary_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
