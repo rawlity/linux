@@ -36,13 +36,13 @@ static void pl111_primary_plane_atomic_update(struct drm_plane *plane,
 	struct drm_device *dev = plane->dev;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 	struct drm_framebuffer *fb = plane->state->fb;
-	struct drm_gem_cma_object *obj = (fb ? drm_fb_cma_get_gem_obj(fb, 0) :
-					  NULL);
+	struct drm_gem_cma_object *obj;
 	u32 addr;
 
 	if (!fb)
 		return;
 
+	obj = drm_fb_cma_get_gem_obj(fb, 0);
 	addr = obj->paddr + fb->offsets[0];
 	addr += fb->format->cpp[0] * plane->state->src_x;
 	addr += fb->pitches[0] * plane->state->src_y;
