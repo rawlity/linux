@@ -38,8 +38,6 @@
  *
  * TODO:
  *
- * - Switch to using DRM panels
- *
  * - Fix race between setting plane base address and getting IRQ for
  *   vsync firing the pageflip completion.
  *
@@ -81,7 +79,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 {
 	struct drm_mode_config *mode_config;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
-	struct pl111_drm_connector *pl111_connector;
 	int ret = 0;
 
 	if (priv == NULL)
@@ -107,10 +104,9 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
-	pl111_connector = pl111_connector_create(dev);
-	if (pl111_connector == NULL) {
+	ret = pl111_connector_create(dev);
+	if (ret) {
 		pr_err("Failed to create pl111_drm_connector\n");
-		ret = -ENOMEM;
 		goto out_config;
 	}
 
@@ -120,14 +116,14 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
-	ret = drm_mode_connector_attach_encoder(&pl111_connector->connector,
+	ret = drm_mode_connector_attach_encoder(&priv->connector.connector,
 						&priv->encoder);
 	if (ret != 0) {
 		DRM_ERROR("Failed to attach encoder\n");
 		goto out_config;
 	}
 
-	pl111_connector->connector.encoder = &priv->encoder;
+	priv->connector.connector.encoder = &priv->encoder;
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret != 0) {

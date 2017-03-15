@@ -27,6 +27,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_panel.h>
 
 #include "pl111_drm.h"
 
@@ -57,25 +58,10 @@ static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	const struct drm_display_mode *mode = &crtc->state->mode;
-	struct drm_display_mode local_mode = {
-		.hdisplay = 640,
-		.hsync_start = 640 + 60,
-		.hsync_end = 640 + 60 + 70,
-		.htotal = 640 + 60 + 70 + 140,
-
-		.vdisplay = 480,
-		.vsync_start = 480 + 5,
-		.vsync_end = 480 + 5 + 3,
-		.vtotal = 480 + 5 + 3 + 33,
-		.clock = 27000,
-	};
 	unsigned int ppl, hsw, hfp, hbp;
 	unsigned int lpp, vsw, vfp, vbp;
 	unsigned int cpl;
 	int ret;
-
-	/* XXX: Hack in 911360's display for the moment. */
-	mode = &local_mode;
 
 	ret = clk_set_rate(priv->clk, mode->clock * 1000);
 	if (ret) {
@@ -99,7 +85,11 @@ static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 	       priv->regs + CLCD_TIM0);
 	writel(lpp | (vsw << 10) | (vfp << 16) | (vbp << 24),
 	       priv->regs + CLCD_TIM1);
-	writel(TIM2_IVS | TIM2_IHS | TIM2_IPC | TIM2_BCD | (cpl << 16) |
+	writel(((mode->flags & DRM_MODE_FLAG_NHSYNC) ? TIM2_IHS : 0) |
+	       ((mode->flags & DRM_MODE_FLAG_NVSYNC) ? TIM2_IVS : 0) |
+	       TIM2_IPC |
+	       TIM2_BCD |
+	       (cpl << 16) |
 	       TIM2_CLKSEL,
 	       priv->regs + CLCD_TIM2);
 	writel(0, priv->regs + CLCD_TIM3);
@@ -114,6 +104,8 @@ static void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 
 	clk_prepare_enable(priv->clk);
 
+	drm_panel_prepare(priv->connector.panel);
+
 	/* Enable and Power Up */
 	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDPWR | CNTL_LCDVCOMP(1);
 
@@ -121,6 +113,8 @@ static void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 	cntl |= readl(priv->regs + CLCD_PL111_CNTL) & (7 << 1);
 
 	writel(cntl, priv->regs + CLCD_PL111_CNTL);
+
+	drm_panel_enable(priv->connector.panel);
 }
 
 void pl111_crtc_helper_disable(struct drm_crtc *crtc)
@@ -129,9 +123,13 @@ void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
+	drm_panel_disable(priv->connector.panel);
+
 	/* Disable and Power Down */
 	writel(readl(priv->regs + CLCD_PL111_CNTL) & (7 << 1),
 	       priv->regs + CLCD_PL111_CNTL);
+
+	drm_panel_unprepare(priv->connector.panel);
 
 	/* Disable clock */
 	clk_disable_unprepare(priv->clk);

@@ -32,42 +32,17 @@
 #define DRIVER_MINOR      1
 #define DRIVER_PATCHLEVEL 1
 
-/*
- * Number of flips allowed in flight at any one time. Any more flips requested
- * beyond this value will cause the caller to block until earlier flips have
- * completed.
- *
- * For performance reasons, this must be greater than the number of buffers
- * used in the rendering pipeline. Note that the rendering pipeline can contain
- * different types of buffer, e.g.:
- * - 2 final framebuffers
- * - >2 geometry buffers for GPU use-cases
- * - >2 vertex buffers for GPU use-cases
- *
- * For example, a system using 5 geometry buffers could have 5 flips in flight,
- * and so NR_FLIPS_IN_FLIGHT_THRESHOLD must be 5 or greater.
- *
- * Whilst there may be more intermediate buffers (such as vertex/geometry) than
- * final framebuffers, KDS is used to ensure that GPU rendering waits for the
- * next off-screen buffer, so it doesn't overwrite an on-screen buffer and
- * produce tearing.
- */
-
-/*
- * Here, we choose a conservative value. A lower value is most likely
- * suitable for GPU use-cases.
- */
-#define NR_FLIPS_IN_FLIGHT_THRESHOLD 16
-
 #define CLCD_IRQ_NEXTBASE_UPDATE (1u<<2)
 
 struct pl111_drm_connector {
 	struct drm_connector connector;
+	struct drm_panel *panel;
 };
 
 struct pl111_drm_dev_private {
 	struct drm_device *drm;
 
+	struct pl111_drm_connector connector;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_plane primary;
@@ -78,9 +53,7 @@ struct pl111_drm_dev_private {
 	struct clk *clk;
 };
 
-#define to_pl111_crtc(x) container_of(x, struct pl111_drm_crtc, crtc)
-
-#define PL111_CONNECTOR_FROM_CONNECTOR(x) \
+#define to_pl111_connector(x) \
 	container_of(x, struct pl111_drm_connector, connector)
 
 /* CRTC Functions */
@@ -90,7 +63,7 @@ irqreturn_t pl111_irq(int irq, void *data);
 int pl111_primary_plane_init(struct drm_device *dev);
 
 /* Connector Functions */
-struct pl111_drm_connector *pl111_connector_create(struct drm_device *dev);
+int pl111_connector_create(struct drm_device *dev);
 
 /* Encoder Functions */
 int pl111_encoder_init(struct drm_device *dev);
