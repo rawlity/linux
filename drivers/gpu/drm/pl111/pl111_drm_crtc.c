@@ -97,7 +97,7 @@ irqreturn_t pl111_irq(int irq, void *data)
 	return status;
 }
 
-void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
+static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	struct clcd_regs timing;
@@ -116,37 +116,7 @@ void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 	writel(timing.tim3, priv->regs + CLCD_TIM3);
 }
 
-void pl111_crtc_helper_prepare(struct drm_crtc *crtc)
-{
-	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-}
-
-void pl111_crtc_helper_commit(struct drm_crtc *crtc)
-{
-	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-}
-
-bool pl111_crtc_helper_mode_fixup(struct drm_crtc *crtc,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
-{
-	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-
-#ifdef CONFIG_ARCH_VEXPRESS
-	/*
-	 * 1024x768 with more than 16 bits per pixel does not work correctly
-	 * on Versatile Express
-	 */
-	if (mode->hdisplay == 1024 && mode->vdisplay == 768 &&
-			crtc->fb->bits_per_pixel > 16) {
-		return false;
-	}
-#endif
-
-	return true;
-}
-
-void pl111_crtc_helper_enable(struct drm_crtc *crtc)
+static void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	u32 cntl;
@@ -236,10 +206,7 @@ const struct drm_crtc_funcs crtc_funcs = {
 
 const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_set_nofb = pl111_crtc_helper_mode_set_nofb,
-	.prepare = pl111_crtc_helper_prepare,
-	.commit = pl111_crtc_helper_commit,
 	.atomic_flush = pl111_crtc_helper_atomic_flush,
-	.mode_fixup = pl111_crtc_helper_mode_fixup,
 	.disable = pl111_crtc_helper_disable,
 	.enable = pl111_crtc_helper_enable,
 };
