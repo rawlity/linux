@@ -230,8 +230,6 @@ static int pl111_amba_remove(struct amba_device *amba_dev)
 	drm_mode_config_cleanup(drm);
 	drm_dev_unref(drm);
 
-	amba_release_regions(amba_dev);
-
 	return 0;
 }
 
