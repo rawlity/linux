@@ -25,7 +25,6 @@
 #include <linux/dma-buf.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
-#include "pl111_clcd_ext.h"
 
 #include "pl111_drm.h"
 
