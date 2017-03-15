@@ -63,27 +63,6 @@
 
 struct pl111_drm_crtc {
 	struct drm_crtc crtc;
-	int crtc_index;
-
-	spinlock_t current_displaying_lock;
-	spinlock_t base_update_lock;
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	struct kds_resource_set *old_kds_res_set;
-#endif
-	struct drm_framebuffer *displaying_fb;
-
-	/*
-	 * The resource that caused a base address update. Only one can be
-	 * pending, hence it's != NULL if there's a pending update
-	 */
-	struct pl111_drm_flip_resource *current_update_res;
-	/* Queue of things waiting to update the base address */
-	struct list_head update_queue;
-
-	struct workqueue_struct *vsync_wq;
-
-	void (*show_framebuffer_cb)(struct pl111_drm_flip_resource *flip_res,
-				struct drm_framebuffer *fb);
 };
 
 struct pl111_drm_connector {
@@ -103,22 +82,6 @@ struct pl111_drm_dev_private {
 	__u32 mmio_len;
 	void *regs;
 	struct clk *clk;
-#ifdef CONFIG_DMA_SHARED_BUFFER_USES_KDS
-	struct kds_callback kds_cb;
-	struct kds_callback kds_obtain_current_cb;
-#endif
-	/*
-	 * Number of flips that were started in show_framebuffer_on_crtc(),
-	 * but haven't completed yet - because we do deferred flipping
-	 */
-	atomic_t nr_flips_in_flight;
-	wait_queue_head_t wait_for_flips;
-
-	/*
-	 * Used to prevent race between pl111_dma_buf_release and
-	 * drm_gem_prime_handle_to_fd
-	 */
-	struct mutex export_dma_buf_lock;
 };
 
 #define to_pl111_crtc(x) container_of(x, struct pl111_drm_crtc, crtc)

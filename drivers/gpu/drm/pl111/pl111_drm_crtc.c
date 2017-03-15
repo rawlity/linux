@@ -30,8 +30,6 @@
 
 #include "pl111_drm.h"
 
-static int pl111_crtc_num;
-
 static void pl111_convert_drm_mode_to_timing(const struct drm_display_mode *mode,
 					     struct clcd_regs *timing)
 {
@@ -196,7 +194,6 @@ void pl111_crtc_destroy(struct drm_crtc *crtc)
 
 	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
-	destroy_workqueue(pl111_crtc->vsync_wq);
 	drm_crtc_cleanup(crtc);
 	kfree(pl111_crtc);
 }
@@ -272,13 +269,6 @@ struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
 				  &priv->primary, NULL,
 				  &crtc_funcs, "primary");
 	drm_crtc_helper_add(&pl111_crtc->crtc, &crtc_helper_funcs);
-
-	pl111_crtc->crtc_index = pl111_crtc_num;
-	pl111_crtc_num++;
-
-	INIT_LIST_HEAD(&pl111_crtc->update_queue);
-	spin_lock_init(&pl111_crtc->current_displaying_lock);
-	spin_lock_init(&pl111_crtc->base_update_lock);
 
 	return pl111_crtc;
 }
