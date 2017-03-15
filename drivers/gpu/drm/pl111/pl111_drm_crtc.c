@@ -86,7 +86,7 @@ irqreturn_t pl111_irq(int irq, void *data)
 		return IRQ_NONE;
 
 	if (irq_stat & CLCD_IRQ_NEXTBASE_UPDATE) {
-		drm_crtc_handle_vblank(&priv->pl111_crtc->crtc);
+		drm_crtc_handle_vblank(&priv->crtc);
 
 		status = IRQ_HANDLED;
 	}
@@ -188,16 +188,6 @@ void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 	clk_disable_unprepare(priv->clk);
 }
 
-void pl111_crtc_destroy(struct drm_crtc *crtc)
-{
-	struct pl111_drm_crtc *pl111_crtc = to_pl111_crtc(crtc);
-
-	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-
-	drm_crtc_cleanup(crtc);
-	kfree(pl111_crtc);
-}
-
 static void pl111_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 					   struct drm_crtc_state *old_state)
 {
@@ -237,7 +227,7 @@ const struct drm_crtc_funcs crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = drm_atomic_helper_crtc_reset,
-	.destroy = pl111_crtc_destroy,
+	.destroy = drm_crtc_cleanup,
 	.enable_vblank = pl111_enable_vblank,
 	.disable_vblank = pl111_disable_vblank,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
@@ -254,21 +244,15 @@ const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.enable = pl111_crtc_helper_enable,
 };
 
-struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev)
+int pl111_crtc_create(struct drm_device *dev)
 {
 	struct pl111_drm_dev_private *priv = dev->dev_private;
-	struct pl111_drm_crtc *pl111_crtc;
+	struct drm_crtc *crtc = &priv->crtc;
 
-	pl111_crtc = kzalloc(sizeof(struct pl111_drm_crtc), GFP_KERNEL);
-	if (pl111_crtc == NULL) {
-		pr_err("Failed to allocated pl111_drm_crtc\n");
-		return NULL;
-	}
-
-	drm_crtc_init_with_planes(dev, &pl111_crtc->crtc,
+	drm_crtc_init_with_planes(dev, crtc,
 				  &priv->primary, NULL,
 				  &crtc_funcs, "primary");
-	drm_crtc_helper_add(&pl111_crtc->crtc, &crtc_helper_funcs);
+	drm_crtc_helper_add(crtc, &crtc_helper_funcs);
 
-	return pl111_crtc;
+	return 0;
 }

@@ -27,8 +27,7 @@ int pl111_drm_init(struct platform_device *dev);
 void pl111_drm_exit(struct platform_device *dev);
 
 /* CRTC Functions */
-struct pl111_drm_crtc *pl111_crtc_create(struct drm_device *dev);
-struct pl111_drm_crtc *pl111_crtc_dummy_create(struct drm_device *dev);
+int pl111_crtc_create(struct drm_device *dev);
 void pl111_crtc_destroy(struct drm_crtc *crtc);
 irqreturn_t pl111_irq(int irq, void *data);
 
@@ -37,8 +36,6 @@ int pl111_primary_plane_init(struct drm_device *dev);
 /* Connector Functions */
 struct pl111_drm_connector *pl111_connector_create(struct drm_device *dev);
 void pl111_connector_destroy(struct drm_connector *connector);
-struct pl111_drm_connector *pl111_connector_dummy_create(struct drm_device
-								*dev);
 
 /* Encoder Functions */
 int pl111_encoder_init(struct drm_device *dev);

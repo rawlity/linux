@@ -66,10 +66,9 @@ static int pl111_modeset_init(struct drm_device *dev)
 		goto out_config;
 	}
 
-	priv->pl111_crtc = pl111_crtc_create(dev);
-	if (priv->pl111_crtc == NULL) {
-		pr_err("Failed to create pl111_drm_crtc\n");
-		ret = -ENOMEM;
+	ret = pl111_crtc_create(dev);
+	if (ret) {
+		pr_err("Failed to create crtc\n");
 		goto out_config;
 	}
 

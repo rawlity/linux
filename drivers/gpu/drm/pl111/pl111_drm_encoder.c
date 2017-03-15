@@ -44,7 +44,7 @@ int pl111_encoder_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	encoder->crtc = &priv->pl111_crtc->crtc;
+	encoder->crtc = &priv->crtc;
 	encoder->possible_crtcs = BIT(drm_crtc_index(encoder->crtc));
 
 	return 0;

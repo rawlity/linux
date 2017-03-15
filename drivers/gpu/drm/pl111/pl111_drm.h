@@ -61,18 +61,14 @@
 
 #define CLCD_IRQ_NEXTBASE_UPDATE (1u<<2)
 
-struct pl111_drm_crtc {
-	struct drm_crtc crtc;
-};
-
 struct pl111_drm_connector {
 	struct drm_connector connector;
 };
 
 struct pl111_drm_dev_private {
 	struct drm_device *drm;
-	struct pl111_drm_crtc *pl111_crtc;
 
+	struct drm_crtc crtc;
 	struct drm_encoder encoder;
 	struct drm_plane primary;
 	struct drm_fbdev_cma *fbdev;
