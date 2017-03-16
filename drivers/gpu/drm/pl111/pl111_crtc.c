@@ -56,6 +56,7 @@ irqreturn_t pl111_irq(int irq, void *data)
 
 static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
+	struct drm_device *drm = crtc->dev;
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	const struct drm_display_mode *mode = &crtc->state->mode;
 	struct drm_connector *connector = &priv->connector.connector;
@@ -66,8 +67,9 @@ static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 
 	ret = clk_set_rate(priv->clk, mode->clock * 1000);
 	if (ret) {
-		dev_err(&priv->amba_dev->dev,
-			"Failed to set pixel clock rate: %d\n", ret);
+		dev_err(drm->dev,
+			"Failed to set pixel clock rate to %d: %d\n",
+			mode->clock * 1000, ret);
 	}
 
 	ppl = (mode->hdisplay / 16) - 1;

@@ -119,7 +119,7 @@ int pl111_connector_create(struct drm_device *dev)
 			   DRM_MODE_CONNECTOR_DVII);
 	drm_connector_helper_add(connector, &connector_helper_funcs);
 
-	pl111_connector->panel = pl111_get_panel(&priv->amba_dev->dev);
+	pl111_connector->panel = pl111_get_panel(dev->dev);
 	if (pl111_connector->panel)
 		drm_panel_attach(pl111_connector->panel, connector);
 

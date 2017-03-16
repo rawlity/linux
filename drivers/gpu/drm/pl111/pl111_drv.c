@@ -94,32 +94,32 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	ret = pl111_primary_plane_init(dev);
 	if (ret != 0) {
-		pr_err("Failed to init primary plane\n");
+		dev_err(dev->dev, "Failed to init primary plane\n");
 		goto out_config;
 	}
 
 	ret = pl111_crtc_create(dev);
 	if (ret) {
-		pr_err("Failed to create crtc\n");
+		dev_err(dev->dev, "Failed to create crtc\n");
 		goto out_config;
 	}
 
 	ret = pl111_connector_create(dev);
 	if (ret) {
-		pr_err("Failed to create pl111_drm_connector\n");
+		dev_err(dev->dev, "Failed to create pl111_drm_connector\n");
 		goto out_config;
 	}
 
 	ret = pl111_encoder_init(dev);
 	if (ret) {
-		pr_err("Failed to create pl111_drm_encoder\n");
+		dev_err(dev->dev, "Failed to create pl111_drm_encoder\n");
 		goto out_config;
 	}
 
 	ret = drm_mode_connector_attach_encoder(&priv->connector.connector,
 						&priv->encoder);
 	if (ret != 0) {
-		DRM_ERROR("Failed to attach encoder\n");
+		dev_err(dev->dev, "Failed to attach encoder\n");
 		goto out_config;
 	}
 
@@ -127,7 +127,7 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	ret = drm_vblank_init(dev, 1);
 	if (ret != 0) {
-		DRM_ERROR("Failed to init vblank\n");
+		dev_err(dev->dev, "Failed to init vblank\n");
 		goto out_config;
 	}
 
@@ -210,34 +210,32 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	priv->drm = drm;
 	drm->dev_private = priv;
 
-	priv->amba_dev = amba_dev;
-
 	priv->clk = devm_clk_get(dev, "clcdclk");
 	if (IS_ERR(priv->clk)) {
-		DRM_ERROR("CLCD: unable to get clk.\n");
+		dev_err(dev, "CLCD: unable to get clk.\n");
 		ret = PTR_ERR(priv->clk);
 		goto dev_unref;
 	}
 
-	priv->regs = devm_ioremap_resource(dev, &priv->amba_dev->res);
+	priv->regs = devm_ioremap_resource(dev, &amba_dev->res);
 	if (priv->regs == NULL) {
-		pr_err("%s failed mmio\n", __func__);
+		dev_err(dev, "%s failed mmio\n", __func__);
 		return -EINVAL;
 	}
 
 	/* turn off interrupts before requesting the irq */
 	writel(0, priv->regs + CLCD_PL111_IENB);
 
-	ret = devm_request_irq(dev, priv->amba_dev->irq[0], pl111_irq, 0,
+	ret = devm_request_irq(dev, amba_dev->irq[0], pl111_irq, 0,
 			       "pl111", priv);
 	if (ret != 0) {
-		pr_err("%s failed irq %d\n", __func__, ret);
+		dev_err(dev, "%s failed irq %d\n", __func__, ret);
 		return ret;
 	}
 
 	ret = pl111_modeset_init(drm);
 	if (ret != 0) {
-		pr_err("Failed to init modeset\n");
+		dev_err(dev, "Failed to init modeset\n");
 		goto dev_unref;
 	}
 

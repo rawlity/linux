@@ -48,7 +48,6 @@ struct pl111_drm_dev_private {
 	struct drm_plane primary;
 	struct drm_fbdev_cma *fbdev;
 
-	struct amba_device *amba_dev;
 	void *regs;
 	struct clk *clk;
 };

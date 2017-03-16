@@ -113,7 +113,7 @@ int pl111_primary_plane_init(struct drm_device *drm)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 	struct drm_plane *plane = &priv->primary;
-	struct device *dev = &priv->amba_dev->dev;
+	struct device *dev = drm->dev;
 	static const u32 formats[] = {
 		DRM_FORMAT_ABGR8888,
 		DRM_FORMAT_XBGR8888,
@@ -142,7 +142,7 @@ int pl111_primary_plane_init(struct drm_device *drm)
 				       "arm,pl11x,tft-r0g0b0-pads",
 				       tft_r0b0g0,
 				       ARRAY_SIZE(tft_r0b0g0)) != 0) {
-		DRM_ERROR("arm,pl11x,tft-r0g0b0-pads should be 3 ints\n");
+		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads should be 3 ints\n");
 		of_node_put(endpoint);
 		return -ENOENT;
 	}
@@ -151,7 +151,7 @@ int pl111_primary_plane_init(struct drm_device *drm)
 	if (tft_r0b0g0[0] != 0 ||
 	    tft_r0b0g0[1] != 8 ||
 	    tft_r0b0g0[2] != 16) {
-		DRM_ERROR("arm,pl11x,tft-r0g0b0-pads != [0,8,16] not yet supported\n");
+		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads != [0,8,16] not yet supported\n");
 		return -EINVAL;
 	}
 
