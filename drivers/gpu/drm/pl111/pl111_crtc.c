@@ -169,6 +169,8 @@ static int pl111_enable_vblank(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 
+	clk_prepare_enable(priv->clk);
+
 	writel(CLCD_IRQ_NEXTBASE_UPDATE, priv->regs + CLCD_PL111_IENB);
 
 	return 0;
@@ -180,6 +182,8 @@ static void pl111_disable_vblank(struct drm_crtc *crtc)
 	struct pl111_drm_dev_private *priv = dev->dev_private;
 
 	writel(0, priv->regs + CLCD_PL111_IENB);
+
+	clk_disable_unprepare(priv->clk);
 }
 
 const struct drm_crtc_funcs crtc_funcs = {
