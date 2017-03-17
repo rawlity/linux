@@ -70,6 +70,8 @@
 
 #include "pl111_drm.h"
 
+#define DRIVER_DESC      "DRM module for PL111"
+
 struct pl111_drm_dev_private priv;
 
 struct drm_mode_config_funcs mode_config_funcs = {
@@ -172,12 +174,12 @@ static struct drm_driver pl111_drm_driver = {
 	.lastclose = pl111_lastclose,
 	.ioctls = NULL,
 	.fops = &drm_fops,
-	.name = DRIVER_NAME,
+	.name = "pl111_drm",
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCHLEVEL,
+	.date = "20170317",
+	.major = 1,
+	.minor = 0,
+	.patchlevel = 0,
 	.dumb_create = pl111_dumb_create,
 	.dumb_destroy = drm_gem_dumb_destroy,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
@@ -287,7 +289,6 @@ static struct amba_driver pl111_amba_driver = {
 module_amba_driver(pl111_amba_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_LICENSE(DRIVER_LICENCE);
-MODULE_ALIAS(DRIVER_ALIAS);
+MODULE_AUTHOR("ARM Ltd.");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pl111_drm");

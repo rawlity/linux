@@ -21,17 +21,6 @@
 
 #include <drm/drm_gem.h>
 
-#define DRIVER_AUTHOR    "ARM Ltd."
-#define DRIVER_NAME      "pl111_drm"
-#define DRIVER_DESC      "DRM module for PL111"
-#define DRIVER_LICENCE   "GPL"
-#define DRIVER_ALIAS     "platform:pl111_drm"
-#define DRIVER_DATE      "20101111"
-#define DRIVER_VERSION   "0.2"
-#define DRIVER_MAJOR      2
-#define DRIVER_MINOR      1
-#define DRIVER_PATCHLEVEL 1
-
 #define CLCD_IRQ_NEXTBASE_UPDATE (1u<<2)
 
 struct pl111_drm_connector {
