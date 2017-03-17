@@ -115,7 +115,7 @@ int pl111_connector_create(struct drm_device *dev)
 	struct drm_connector *connector = &pl111_connector->connector;
 
 	drm_connector_init(dev, connector, &connector_funcs,
-			   DRM_MODE_CONNECTOR_DVII);
+			   DRM_MODE_CONNECTOR_DPI);
 	drm_connector_helper_add(connector, &connector_helper_funcs);
 
 	pl111_connector->panel = pl111_get_panel(dev->dev);
