@@ -146,7 +146,6 @@ static int pl111_modeset_init(struct drm_device *dev)
 out_config:
 	drm_mode_config_cleanup(dev);
 finish:
-	DRM_DEBUG("%s returned %d\n", __func__, ret);
 	return ret;
 }
 
@@ -201,7 +200,6 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	struct pl111_drm_dev_private *priv;
 	struct drm_device *drm;
 	int ret;
-	pr_info("DRM %s\n", __func__);
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

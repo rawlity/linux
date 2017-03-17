@@ -117,8 +117,6 @@ static void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
 	u32 cntl;
 
-	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
-
 	clk_prepare_enable(priv->clk);
 
 	drm_panel_prepare(priv->connector.panel);
@@ -137,8 +135,6 @@ static void pl111_crtc_helper_enable(struct drm_crtc *crtc)
 void pl111_crtc_helper_disable(struct drm_crtc *crtc)
 {
 	struct pl111_drm_dev_private *priv = crtc->dev->dev_private;
-
-	DRM_DEBUG_KMS("DRM %s on crtc=%p\n", __func__, crtc);
 
 	drm_panel_disable(priv->connector.panel);
 
