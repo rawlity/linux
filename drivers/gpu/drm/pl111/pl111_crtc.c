@@ -214,5 +214,7 @@ int pl111_crtc_create(struct drm_device *dev)
 				  &crtc_funcs, "primary");
 	drm_crtc_helper_add(crtc, &crtc_helper_funcs);
 
+	clk_prepare_enable(priv->clk);
+
 	return 0;
 }
