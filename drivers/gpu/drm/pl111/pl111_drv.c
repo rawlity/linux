@@ -49,6 +49,9 @@
  *
  * - Read back hardware state at boot to skip reprogramming the
  *   hardware when doing a no-op modeset.
+ *
+ * - Use the internal clock divisor to reduce power consumption by
+ *   using HCLK (apb_pclk) when appropriate.
  */
 
 #include <linux/amba/bus.h>

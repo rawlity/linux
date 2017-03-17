@@ -94,6 +94,11 @@ static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 	       (vfp << 16) |
 	       (vbp << 24),
 	       priv->regs + CLCD_TIM1);
+	/* XXX: We currently always use CLCDCLK with no divisor.  We
+	 * could probably reduce power consumption by using HCLK
+	 * (apb_pclk) with a divisor when it gets us near our target
+	 * pixel clock.
+	 */
 	writel(((mode->flags & DRM_MODE_FLAG_NHSYNC) ? TIM2_IHS : 0) |
 	       ((mode->flags & DRM_MODE_FLAG_NVSYNC) ? TIM2_IVS : 0) |
 	       ((connector->display_info.bus_flags &
@@ -214,6 +219,9 @@ int pl111_crtc_create(struct drm_device *dev)
 				  &crtc_funcs, "primary");
 	drm_crtc_helper_add(crtc, &crtc_helper_funcs);
 
+	/* XXX: The runtime clock disabling still results in
+	 * occasional system hangs, and needs debugging.
+	 */
 	clk_prepare_enable(priv->clk);
 
 	return 0;
