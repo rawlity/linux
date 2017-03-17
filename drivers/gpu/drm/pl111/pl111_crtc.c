@@ -54,6 +54,20 @@ irqreturn_t pl111_irq(int irq, void *data)
 	return status;
 }
 
+static int pl111_crtc_atomic_check(struct drm_crtc *crtc,
+				   struct drm_crtc_state *state)
+{
+	const struct drm_display_mode *mode = &state->mode;
+
+	if (!state->active)
+		return 0;
+
+	if (mode->hdisplay % 16)
+		return -EINVAL;
+
+	return 0;
+}
+
 static void pl111_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *drm = crtc->dev;
@@ -200,6 +214,7 @@ const struct drm_crtc_funcs crtc_funcs = {
 
 const struct drm_crtc_helper_funcs crtc_helper_funcs = {
 	.mode_set_nofb = pl111_crtc_helper_mode_set_nofb,
+	.atomic_check = pl111_crtc_atomic_check,
 	.atomic_flush = pl111_crtc_helper_atomic_flush,
 	.disable = pl111_crtc_helper_disable,
 	.enable = pl111_crtc_helper_enable,
