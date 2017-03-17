@@ -18,8 +18,7 @@
  * pl111_drm_connector.c
  * Implementation of the connector functions for PL111 DRM
  */
-#include <linux/amba/bus.h>
-#include <linux/amba/clcd.h>
+#include <linux/amba/clcd-regs.h>
 #include <linux/version.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>

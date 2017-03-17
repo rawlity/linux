@@ -14,8 +14,7 @@
  *
  */
 
-#include <linux/amba/bus.h>
-#include <linux/amba/clcd.h>
+#include <linux/amba/clcd-regs.h>
 #include <linux/of_graph.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>

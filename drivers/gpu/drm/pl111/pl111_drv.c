@@ -52,7 +52,7 @@
  */
 
 #include <linux/amba/bus.h>
-#include <linux/amba/clcd.h>
+#include <linux/amba/clcd-regs.h>
 #include <linux/version.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
@@ -190,6 +190,7 @@ static struct drm_driver pl111_drm_driver = {
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
 };
 
+#ifdef CONFIG_ARM_AMBA
 static int pl111_amba_probe(struct amba_device *amba_dev,
 			    const struct amba_id *id)
 {
@@ -280,6 +281,7 @@ static struct amba_driver pl111_amba_driver = {
 	.remove = pl111_amba_remove,
 	.id_table = pl111_id_table,
 };
+#endif /* CONFIG_ARM_AMBA */
 
 module_amba_driver(pl111_amba_driver);
 
