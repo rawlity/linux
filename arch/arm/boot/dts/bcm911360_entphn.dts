@@ -139,6 +139,10 @@
 	};
 };
 
+&touchscreen {
+	status = "okay";
+};
+
 &clcd {
 	status = "okay";
 	port {
