@@ -112,6 +112,10 @@
 	status = "okay";
 };
 
+&touchscreen {
+	status = "okay";
+};
+
 &v3d {
 	assigned-clocks =
 		<&mipipll BCM_CYGNUS_MIPIPLL>,
