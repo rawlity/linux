@@ -466,7 +466,6 @@
 			compatible = "brcm,cygnus-v3d";
 			reg = <0x180a2000 0x1000>;
 			clocks = <&mipipll BCM_CYGNUS_MIPIPLL_CH2_V3D>;
-			clock-names = "v3d_clk";
 			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 		};
