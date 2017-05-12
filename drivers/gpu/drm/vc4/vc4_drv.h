@@ -53,6 +53,13 @@ struct vc4_dev {
 		u32 size_allocated;
 		u32 num_cached;
 		u32 size_cached;
+
+		u32 num_labels;
+		struct vc4_label {
+			const char *name;
+			u32 num_allocated;
+			u32 size_allocated;
+		} *labels;
 	} bo_stats;
 
 	/* Protects bo_cache and the BO stats. */
@@ -169,6 +176,8 @@ struct vc4_bo {
 	/* normally (resv == &_resv) except for imported bo's */
 	struct reservation_object *resv;
 	struct reservation_object _resv;
+
+	const char *name;
 };
 
 static inline struct vc4_bo *
@@ -474,6 +483,8 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
+int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
@@ -484,6 +495,7 @@ void *vc4_prime_vmap(struct drm_gem_object *obj);
 void vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
 int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
+void vc4_label(struct drm_gem_object *gem_obj, const char *name);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;

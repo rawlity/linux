@@ -47,29 +47,103 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_bo_stats stats;
+	int i;
 
-	/* Take a snapshot of the current stats with the lock held. */
 	mutex_lock(&vc4->bo_lock);
-	stats = vc4->bo_stats;
-	mutex_unlock(&vc4->bo_lock);
+	for (i = 0; i < vc4->bo_stats.num_labels; i++) {
+		if (!vc4->bo_stats.labels[i].num_allocated)
+			continue;
 
-	seq_printf(m, "num bos allocated: %d\n",
-		   stats.num_allocated);
-	seq_printf(m, "size bos allocated: %dkb\n",
-		   stats.size_allocated / 1024);
-	seq_printf(m, "num bos used: %d\n",
-		   stats.num_allocated - stats.num_cached);
-	seq_printf(m, "size bos used: %dkb\n",
-		   (stats.size_allocated - stats.size_cached) / 1024);
-	seq_printf(m, "num bos cached: %d\n",
-		   stats.num_cached);
-	seq_printf(m, "size bos cached: %dkb\n",
-		   stats.size_cached / 1024);
+		seq_printf(m, "%30s: %6dkb BOs (%d)\n",
+			   vc4->bo_stats.labels[i].name,
+			   vc4->bo_stats.labels[i].size_allocated / 1024,
+			   vc4->bo_stats.labels[i].num_allocated);
+	}
+
+	mutex_unlock(&vc4->bo_lock);
 
 	return 0;
 }
 #endif
+
+static bool
+subtract_from_label(struct vc4_dev *vc4, const char *name, u32 size)
+{
+	int i;
+
+	for (i = 0; i < vc4->bo_stats.num_labels; i++) {
+		if (strcmp(vc4->bo_stats.labels[i].name, name) == 0) {
+			vc4->bo_stats.labels[i].num_allocated--;
+			vc4->bo_stats.labels[i].size_allocated -= size;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool
+add_to_label(struct vc4_dev *vc4, const char *name, u32 size)
+{
+	int i;
+
+	for (i = 0; i < vc4->bo_stats.num_labels; i++) {
+		if (strcmp(vc4->bo_stats.labels[i].name, name) == 0) {
+			vc4->bo_stats.labels[i].num_allocated++;
+			vc4->bo_stats.labels[i].size_allocated += size;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void
+vc4_label_locked(struct drm_gem_object *gem_obj, const char *name)
+{
+	struct vc4_bo *bo = to_vc4_bo(gem_obj);
+	struct vc4_dev *vc4 = to_vc4_dev(gem_obj->dev);
+
+	if (bo->name) {
+		subtract_from_label(vc4, bo->name, gem_obj->size);
+		kfree(bo->name);
+		bo->name = NULL;
+	}
+
+	if (!name)
+		return;
+
+	if (!add_to_label(vc4, name, gem_obj->size)) {
+		uint32_t new_label_count = vc4->bo_stats.num_labels + 1;
+		struct vc4_label *label;
+		struct vc4_label *new_labels =
+			krealloc(vc4->bo_stats.labels,
+				 new_label_count * sizeof(*new_labels),
+				 GFP_KERNEL);
+		if (!new_labels)
+			return;
+
+		vc4->bo_stats.labels = new_labels;
+		vc4->bo_stats.num_labels = new_label_count;
+
+		label = &vc4->bo_stats.labels[new_label_count - 1];
+		label->name = kstrdup(name, GFP_KERNEL); /* XXX devm */
+		label->num_allocated = 1;
+		label->size_allocated = gem_obj->size;
+	}
+
+	bo->name = name;
+}
+
+void
+vc4_label(struct drm_gem_object *gem_obj, const char *name)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(gem_obj->dev);
+
+	mutex_lock(&vc4->bo_lock);
+	vc4_label_locked(gem_obj, name);
+	mutex_unlock(&vc4->bo_lock);
+}
 
 static uint32_t bo_page_index(size_t size)
 {
@@ -81,6 +155,8 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 {
 	struct drm_gem_object *obj = &bo->base.base;
 	struct vc4_dev *vc4 = to_vc4_dev(obj->dev);
+
+	vc4_label_locked(obj, NULL);
 
 	if (bo->validated_shader) {
 		kfree(bo->validated_shader->texture_samples);
@@ -276,6 +352,10 @@ int vc4_dumb_create(struct drm_file *file_priv,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
+	vc4_label(&bo->base.base, kasprintf(GFP_KERNEL, "dumb %dx%d@%d",
+					    args->width, args->height,
+					    args->bpp));
+
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 	drm_gem_object_unreference_unlocked(&bo->base.base);
 
@@ -314,6 +394,7 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 	struct list_head *cache_list;
 
 	mutex_lock(&vc4->bo_lock);
+
 	/* If the object references someone else's memory, we can't cache it.
 	 */
 	if (gem_bo->import_attach) {
@@ -351,6 +432,7 @@ void vc4_free_object(struct drm_gem_object *gem_bo)
 	list_add(&bo->size_head, cache_list);
 	list_add(&bo->unref_head, &vc4->bo_cache.time_list);
 
+	vc4_label_locked(&bo->base.base, kstrdup("cache", GFP_KERNEL));
 	vc4->bo_stats.num_cached++;
 	vc4->bo_stats.size_cached += gem_bo->size;
 
@@ -490,6 +572,8 @@ int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
+	vc4_label(&bo->base.base, kstrdup("user", GFP_KERNEL));
+
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 	drm_gem_object_unreference_unlocked(&bo->base.base);
 
@@ -542,6 +626,8 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	bo = vc4_bo_create(dev, args->size, true);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
+
+	vc4_label(&bo->base.base, kstrdup("shader", GFP_KERNEL));
 
 	if (copy_from_user(bo->base.vaddr,
 			     (void __user *)(uintptr_t)args->data,
@@ -599,4 +685,37 @@ void vc4_bo_cache_destroy(struct drm_device *dev)
 		DRM_ERROR("Destroying BO cache while BOs still allocated:\n");
 		vc4_bo_stats_dump(vc4);
 	}
+}
+
+int
+vc4_label_bo_ioctl(struct drm_device *dev, void *data,
+		   struct drm_file *file_priv)
+{
+	struct drm_vc4_label_bo *args = data;
+	char *name;
+	struct drm_gem_object *gem_obj;
+
+	name = kmalloc(args->len + 1, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	if (copy_from_user(name, (void __user *)(uintptr_t)args->name,
+			   args->len)) {
+		kfree(name);
+		return -EFAULT;
+	}
+	name[args->len] = 0;
+
+	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!gem_obj) {
+		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		kfree(name);
+		return -EINVAL;
+	}
+
+	vc4_label(gem_obj, name);
+
+	drm_gem_object_unreference_unlocked(gem_obj);
+
+	return 0;
 }

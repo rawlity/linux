@@ -326,6 +326,8 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	list_add_tail(&to_vc4_bo(&setup->rcl->base)->unref_head,
 		      &exec->unref_list);
 
+	vc4_label(&setup->rcl->base, kstrdup("RCL", GFP_KERNEL));
+
 	/* The tile buffer gets cleared when the previous tile is stored.  If
 	 * the clear values changed between frames, then the tile buffer has
 	 * stale clear values in it, so we have to do a store in None mode (no

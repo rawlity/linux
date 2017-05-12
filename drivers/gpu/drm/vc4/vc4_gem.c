@@ -779,6 +779,8 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	}
 	exec->exec_bo = &bo->base;
 
+	vc4_label(&bo->base.base, kstrdup("BCL", GFP_KERNEL));
+
 	list_add_tail(&to_vc4_bo(&exec->exec_bo->base)->unref_head,
 		      &exec->unref_list);
 

@@ -249,6 +249,8 @@ vc4_allocate_bin_bo(struct drm_device *drm)
 			break;
 		}
 
+		vc4_label(&bo->base.base, kstrdup("overflow", GFP_KERNEL));
+
 		/* Check if this BO won't trigger the addressing bug. */
 		if ((bo->base.paddr & 0xf0000000) ==
 		    ((bo->base.paddr + bo->base.base.size - 1) & 0xf0000000)) {
