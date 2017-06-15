@@ -82,10 +82,13 @@ static int panel_bridge_attach(struct drm_bridge *bridge)
 
 	drm_mode_connector_attach_encoder(&panel_bridge->connector,
 					  bridge->encoder);
+	drm_atomic_helper_connector_reset(&panel_bridge->connector);
 
 	ret = drm_panel_attach(panel_bridge->panel, &panel_bridge->connector);
 	if (ret < 0)
 		return ret;
+
+	drm_connector_register(&panel_bridge->connector);
 
 	return 0;
 }
