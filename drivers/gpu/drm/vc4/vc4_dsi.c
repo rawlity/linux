@@ -33,6 +33,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
@@ -504,7 +505,6 @@ struct vc4_dsi {
 	struct mipi_dsi_host dsi_host;
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
-	bool is_panel_bridge;
 
 	void __iomem *regs;
 
@@ -1289,7 +1289,6 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
 	struct vc4_dsi *dsi = host_to_dsi(host);
-	int ret = 0;
 
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
@@ -1324,34 +1323,12 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 		return 0;
 	}
 
-	dsi->bridge = of_drm_find_bridge(device->dev.of_node);
-	if (!dsi->bridge) {
-		struct drm_panel *panel =
-			of_drm_find_panel(device->dev.of_node);
-
-		dsi->bridge = drm_panel_bridge_add(panel,
-						   DRM_MODE_CONNECTOR_DSI);
-		if (IS_ERR(dsi->bridge)) {
-			ret = PTR_ERR(dsi->bridge);
-			dsi->bridge = NULL;
-			return ret;
-		}
-		dsi->is_panel_bridge = true;
-	}
-
 	return drm_bridge_attach(dsi->encoder, dsi->bridge, NULL);
 }
 
 static int vc4_dsi_host_detach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
-	struct vc4_dsi *dsi = host_to_dsi(host);
-
-	if (dsi->is_panel_bridge) {
-		drm_panel_bridge_remove(dsi->bridge);
-		dsi->bridge = NULL;
-	}
-
 	return 0;
 }
 
@@ -1495,6 +1472,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dsi *dsi;
 	struct vc4_dsi_encoder *vc4_dsi_encoder;
+	struct drm_panel *panel;
 	const struct of_device_id *match;
 	dma_cap_mask_t dma_mask;
 	int ret;
@@ -1596,6 +1574,18 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get pixel clock: %d\n", ret);
 		return ret;
+	}
+
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
+					  &panel, &dsi->bridge);
+	if (ret)
+		return ret;
+
+	if (panel) {
+		dsi->bridge = devm_drm_panel_bridge_add(dev, panel,
+							DRM_MODE_CONNECTOR_DSI);
+		if (IS_ERR(dsi->bridge))
+			return PTR_ERR(dsi->bridge);
 	}
 
 	/* The esc clock rate is supposed to always be 100Mhz. */
