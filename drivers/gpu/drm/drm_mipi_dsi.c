@@ -45,6 +45,13 @@
  * subset of the MIPI DCS command set.
  */
 
+static DEFINE_MUTEX(host_lock);
+static LIST_HEAD(host_list);
+/* List of struct mipi_dsi_device which were registered while no host
+ * was available.
+ */
+static LIST_HEAD(unattached_device_list);
+
 static int mipi_dsi_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
@@ -138,10 +145,12 @@ static struct mipi_dsi_device *mipi_dsi_device_alloc(struct mipi_dsi_host *host)
 
 	dsi->host = host;
 	dsi->dev.bus = &mipi_dsi_bus_type;
-	dsi->dev.parent = host->dev;
 	dsi->dev.type = &mipi_dsi_device_type;
 
-	device_initialize(&dsi->dev);
+	if (dsi->host) {
+		dsi->dev.parent = host->dev;
+		device_initialize(&dsi->dev);
+	}
 
 	return dsi;
 }
@@ -206,7 +215,7 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 			      const struct mipi_dsi_device_info *info)
 {
 	struct mipi_dsi_device *dsi;
-	struct device *dev = host->dev;
+	struct device *dev = host ? host->dev : NULL;
 	int ret;
 
 	if (!info) {
@@ -230,11 +239,17 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 	dsi->channel = info->channel;
 	strlcpy(dsi->name, info->type, sizeof(dsi->name));
 
-	ret = mipi_dsi_device_add(dsi);
-	if (ret) {
-		dev_err(dev, "failed to add DSI device %d\n", ret);
-		kfree(dsi);
-		return ERR_PTR(ret);
+	if (!dsi->host) {
+		mutex_lock(&host_lock);
+		list_add(&dsi->list, &unattached_device_list);
+		mutex_unlock(&host_lock);
+	} else {
+		ret = mipi_dsi_device_add(dsi);
+		if (ret) {
+			dev_err(dev, "failed to add DSI device %d\n", ret);
+			kfree(dsi);
+			return ERR_PTR(ret);
+		}
 	}
 
 	return dsi;
@@ -250,9 +265,6 @@ void mipi_dsi_device_unregister(struct mipi_dsi_device *dsi)
 	device_unregister(&dsi->dev);
 }
 EXPORT_SYMBOL(mipi_dsi_device_unregister);
-
-static DEFINE_MUTEX(host_lock);
-static LIST_HEAD(host_list);
 
 /**
  * of_find_mipi_dsi_host_by_node() - find the MIPI DSI host matching a
@@ -285,6 +297,7 @@ EXPORT_SYMBOL(of_find_mipi_dsi_host_by_node);
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
 	struct device_node *node;
+	struct mipi_dsi_device *dsi, *temp;
 
 	for_each_available_child_of_node(host->dev->of_node, node) {
 		/* skip nodes without reg property */
@@ -295,6 +308,30 @@ int mipi_dsi_host_register(struct mipi_dsi_host *host)
 
 	mutex_lock(&host_lock);
 	list_add_tail(&host->list, &host_list);
+
+#if IS_ENABLED(CONFIG_OF)
+	/* If any DSI devices were registered under our OF node, then
+	 * connect our host to it and probe them now.
+	 */
+	list_for_each_entry_safe(dsi, temp, &unattached_device_list, list) {
+		struct device_node *host_node = of_get_parent(dsi->dev.of_node);
+
+		if (!of_node_cmp(host_node->name, "ports"))
+			host_node = of_get_next_parent(host_node);
+
+		if (host_node == host->dev->of_node) {
+			dsi->host = host;
+			dsi->dev.parent = host->dev;
+			device_initialize(&dsi->dev);
+
+			mipi_dsi_device_add(dsi);
+			list_del_init(&dsi->list);
+		}
+
+		of_node_put(host_node);
+	}
+#endif
+
 	mutex_unlock(&host_lock);
 
 	return 0;
@@ -326,7 +363,12 @@ EXPORT_SYMBOL(mipi_dsi_host_unregister);
  */
 int mipi_dsi_attach(struct mipi_dsi_device *dsi)
 {
-	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
+	const struct mipi_dsi_host_ops *ops;
+
+	if (!dsi->host)
+		return -EINVAL;
+
+	ops = dsi->host->ops;
 
 	if (!ops || !ops->attach)
 		return -ENOSYS;

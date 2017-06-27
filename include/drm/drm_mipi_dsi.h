@@ -168,6 +168,7 @@ struct mipi_dsi_device_info {
  * @format: pixel format for video mode
  * @lanes: number of active data lanes
  * @mode_flags: DSI operation mode related flags
+ * @list: Entry on the unattached_device_list
  */
 struct mipi_dsi_device {
 	struct mipi_dsi_host *host;
@@ -178,6 +179,8 @@ struct mipi_dsi_device {
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
 	unsigned long mode_flags;
+
+	struct list_head list;
 };
 
 #define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"
