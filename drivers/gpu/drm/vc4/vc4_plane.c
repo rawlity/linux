@@ -53,11 +53,7 @@ struct vc4_plane_state {
 	 */
 	u32 __iomem *hw_dlist;
 
-	/* Clipped coordinates of the plane on the display. */
-	int crtc_x, crtc_y, crtc_w, crtc_h;
-	/* Clipped area being scanned from in the FB. */
-	u32 src_x, src_y;
-
+	int crtc_w, crtc_h;
 	u32 src_w[2], src_h[2];
 
 	/* Scaling selection for the RGB/Y plane and the Cb/Cr planes. */
@@ -292,7 +288,6 @@ static u32 vc4_get_scl_field(struct drm_plane_state *state, int plane)
 
 static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
-	struct drm_plane *plane = state->plane;
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
@@ -307,20 +302,16 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 		vc4_state->offsets[i] = bo->paddr + fb->offsets[i];
 
 	/* We don't support subpixel source positioning for scaling. */
-	if ((state->src_x & subpixel_src_mask) ||
-	    (state->src_y & subpixel_src_mask) ||
-	    (state->src_w & subpixel_src_mask) ||
-	    (state->src_h & subpixel_src_mask)) {
+	if ((state->src.x1 & subpixel_src_mask) ||
+	    (state->src.x2 & subpixel_src_mask) ||
+	    (state->src.y1 & subpixel_src_mask) ||
+	    (state->src.y2 & subpixel_src_mask)) {
 		return -EINVAL;
 	}
 
-	vc4_state->src_x = state->src_x >> 16;
-	vc4_state->src_y = state->src_y >> 16;
-	vc4_state->src_w[0] = state->src_w >> 16;
-	vc4_state->src_h[0] = state->src_h >> 16;
+	vc4_state->src_w[0] = (state->src.x2 - state->src.x1) >> 16;
+	vc4_state->src_h[0] = (state->src.y2 - state->src.y1) >> 16;
 
-	vc4_state->crtc_x = state->crtc_x;
-	vc4_state->crtc_y = state->crtc_y;
 	vc4_state->crtc_w = state->crtc_w;
 	vc4_state->crtc_h = state->crtc_h;
 
@@ -358,41 +349,6 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 			       vc4_state->y_scaling[0] == VC4_SCALING_NONE &&
 			       vc4_state->x_scaling[1] == VC4_SCALING_NONE &&
 			       vc4_state->y_scaling[1] == VC4_SCALING_NONE);
-
-	/* No configuring scaling on the cursor plane, since it gets
-	   non-vblank-synced updates, and scaling requires requires
-	   LBM changes which have to be vblank-synced.
-	 */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR && !vc4_state->is_unity)
-		return -EINVAL;
-
-	/* Clamp the on-screen start x/y to 0.  The hardware doesn't
-	 * support negative y, and negative x wastes bandwidth.
-	 */
-	if (vc4_state->crtc_x < 0) {
-		for (i = 0; i < num_planes; i++) {
-			u32 cpp = fb->format->cpp[i];
-			u32 subs = ((i == 0) ? 1 : h_subsample);
-
-			vc4_state->offsets[i] += (cpp *
-						  (-vc4_state->crtc_x) / subs);
-		}
-		vc4_state->src_w[0] += vc4_state->crtc_x;
-		vc4_state->src_w[1] += vc4_state->crtc_x / h_subsample;
-		vc4_state->crtc_x = 0;
-	}
-
-	if (vc4_state->crtc_y < 0) {
-		for (i = 0; i < num_planes; i++) {
-			u32 subs = ((i == 0) ? 1 : v_subsample);
-
-			vc4_state->offsets[i] += (fb->pitches[i] *
-						  (-vc4_state->crtc_y) / subs);
-		}
-		vc4_state->src_h[0] += vc4_state->crtc_y;
-		vc4_state->src_h[1] += vc4_state->crtc_y / v_subsample;
-		vc4_state->crtc_y = 0;
-	}
 
 	return 0;
 }
@@ -502,8 +458,33 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	int num_planes = drm_format_num_planes(format->drm);
 	u32 scl0, scl1, pitch0;
 	u32 lbm_size, tiling;
+	u32 min_scale, max_scale;
 	unsigned long irqflags;
 	int ret, i;
+	/* Clip rect for clamping our planes to the top/left of the screen. */
+	static const struct drm_rect clip = {
+		.x1 = 0,
+		.y1 = 0,
+		.x2 = INT_MAX,
+		.y2 = INT_MAX,
+	};
+
+	/* No configuring scaling on the cursor plane, since it gets
+	 * non-vblank-synced updates, and scaling requires LBM changes
+	 * which have to be vblank-synced.
+	 */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+		min_scale = DRM_PLANE_HELPER_NO_SCALING;
+		max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	} else {
+		min_scale = 1;
+		max_scale = INT_MAX;
+	}
+
+	ret = drm_plane_helper_check_state(state, &clip, min_scale, max_scale,
+					   true, true);
+	if (ret)
+		return ret;
 
 	ret = vc4_plane_setup_clipping_and_scaling(state);
 	if (ret)
@@ -546,22 +527,65 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	case DRM_FORMAT_MOD_LINEAR:
 		tiling = SCALER_CTL0_TILING_LINEAR;
 		pitch0 = VC4_SET_FIELD(fb->pitches[0], SCALER_SRC_PITCH);
+
+		/* Adjust the base pointer to the first pixel to be
+		 * scanned out.
+		 */
+		for (i = 0; i < num_planes; i++) {
+			vc4_state->offsets[i] +=
+				((state->src.x1 >> 16) * fb->format->cpp[i] +
+				 (state->src.y1 >> 16) * fb->pitches[i]);
+		}
 		break;
 
 	case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED: {
+		u32 src_x = state->src.x1 >> 16;
+		u32 src_y = state->src.y1 >> 16;
 		/* For T-tiled, the FB pitch is "how many bytes from
 		 * one row to the next, such that pitch * tile_h ==
 		 * tile_size * tiles_per_row."
 		 */
 		u32 tile_size_shift = 12;
+		/* Whole-tile offsets, mostly for setting the pitch. */
+		u32 tile_w_shift = fb->format->cpp[0] == 2 ? 6 : 5;
 		u32 tile_h_shift = 5;
+		u32 tile_w_mask = (1 << tile_w_shift) - 1;
+		u32 tile_h_mask = (1 << tile_h_shift) - 1;
 		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
+		u32 tiles_l = (state->src.x1 >> 16) >> tile_w_shift;
+		u32 tiles_r = tiles_w - tiles_l;
+		u32 tiles_t = src_y >> tile_h_shift;
+		/* Intra-tile offsets, which modify the base address
+		 * (the SCALER_PITCH0_TILE_Y_OFFSET tells HVS how to
+		 * walk from that base address).
+		 */
+		u32 tile_y = (src_y >> 4) & 1;
+		u32 subtile_y = (src_y >> 2) & 3;
+		u32 utile_y = src_y & 3;
+		u32 x_off = src_x & tile_w_mask;
+		u32 y_off = src_y & tile_h_mask;
 
 		tiling = SCALER_CTL0_TILING_256B_OR_T;
 
-		pitch0 = (VC4_SET_FIELD(0, SCALER_PITCH0_TILE_Y_OFFSET) |
-			  VC4_SET_FIELD(0, SCALER_PITCH0_TILE_WIDTH_L) |
-			  VC4_SET_FIELD(tiles_w, SCALER_PITCH0_TILE_WIDTH_R));
+		pitch0 = (VC4_SET_FIELD(x_off, SCALER_PITCH0_SINK_PIX) |
+			  VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
+			  VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
+			  VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
+
+		/* Rows of tiles alternate left-to-right and
+		 * right-to-left.
+		 */
+		if (tiles_t & 1) {
+			vc4_state->offsets[0] += (tiles_w - tiles_l - 1) << tile_size_shift;
+			pitch0 |= SCALER_PITCH0_TILE_INITIAL_LINE_DIR;
+			vc4_state->offsets[0] += !tile_y << 10;
+		} else {
+			vc4_state->offsets[0] += tiles_l << tile_size_shift;
+			vc4_state->offsets[0] += tile_y << 10;
+		}
+		vc4_state->offsets[0] += tiles_t * (tiles_w << tile_size_shift);
+		vc4_state->offsets[0] += subtile_y << 8;
+		vc4_state->offsets[0] += utile_y << 4;
 		break;
 	}
 
@@ -585,8 +609,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	vc4_state->pos0_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
 			VC4_SET_FIELD(0xff, SCALER_POS0_FIXED_ALPHA) |
-			VC4_SET_FIELD(vc4_state->crtc_x, SCALER_POS0_START_X) |
-			VC4_SET_FIELD(vc4_state->crtc_y, SCALER_POS0_START_Y));
+			VC4_SET_FIELD(state->dst.x1, SCALER_POS0_START_X) |
+			VC4_SET_FIELD(state->dst.y1, SCALER_POS0_START_Y));
 
 	/* Position Word 1: Scaled Image Dimensions. */
 	if (!vc4_state->is_unity) {
