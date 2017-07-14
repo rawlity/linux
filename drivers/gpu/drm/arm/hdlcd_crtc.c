@@ -242,12 +242,9 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 	if (!state->fb || !state->crtc)
 		return 0;
 
-	crtc_state = drm_atomic_get_existing_crtc_state(state->state,
-							state->crtc);
-	if (!crtc_state) {
-		DRM_DEBUG_KMS("Invalid crtc state\n");
-		return -EINVAL;
-	}
+	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
 
 	clip.x2 = crtc_state->adjusted_mode.hdisplay;
 	clip.y2 = crtc_state->adjusted_mode.vdisplay;
