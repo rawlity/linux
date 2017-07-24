@@ -153,6 +153,16 @@ struct drm_vc4_submit_cl {
 	__u32 pad:24;
 
 #define VC4_SUBMIT_CL_USE_CLEAR_COLOR			(1 << 0)
+/* By default, the kernel gets to choose the order that the tiles are
+ * rendered in.  If this is set, then the tiles will be rendered in a
+ * raster order, with the right-to-left vs left-to-right and
+ * top-to-bottom vs bottom-to-top dictated by
+ * VC4_SUBMIT_CL_RCL_ORDER_INCREASING_*.  This allows overlapping
+ * blits to be implemented using the 3D engine.
+ */
+#define VC4_SUBMIT_CL_FIXED_RCL_ORDER			(1 << 1)
+#define VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X		(1 << 2)
+#define VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y		(1 << 3)
 	__u32 flags;
 
 	/* Returned value of the seqno of this render job (for the
