@@ -47,6 +47,7 @@
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"
+#include "vc4_trace.h"
 
 #define V3D_DRIVER_IRQS (V3D_INT_OUTOMEM | \
 			 V3D_INT_FLDONE | \
@@ -109,6 +110,7 @@ vc4_irq_finish_bin_job(struct drm_device *dev)
 	if (!exec)
 		return;
 
+	trace_vc4_finish_cl(dev, exec->seqno, false);
 	vc4_move_job_to_render(dev, exec);
 	next = vc4_first_bin_job(vc4);
 
@@ -146,6 +148,8 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 
 	if (!exec)
 		return;
+
+	trace_vc4_finish_cl(dev, exec->seqno, true);
 
 	vc4->finished_seqno++;
 	list_move_tail(&exec->head, &vc4->job_done_list);

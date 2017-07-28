@@ -55,6 +55,64 @@ TRACE_EVENT(vc4_wait_for_seqno_end,
 		      __entry->dev, __entry->seqno)
 );
 
+TRACE_EVENT(vc4_submit_cl_begin,
+	    TP_PROTO(struct drm_device *dev),
+	    TP_ARGS(dev),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   ),
+
+	    TP_printk("dev=%u",
+		      __entry->dev)
+);
+
+TRACE_EVENT(vc4_submit_cl,
+	    TP_PROTO(struct drm_device *dev, uint64_t seqno, int ring),
+	    TP_ARGS(dev, seqno, ring),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u64, seqno)
+			     __field(bool, ring)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   __entry->ring = ring;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%llu %s",
+		      __entry->dev, __entry->seqno,
+		      __entry->ring ? "RCL" : "BCL")
+);
+
+TRACE_EVENT(vc4_finish_cl,
+	    TP_PROTO(struct drm_device *dev, uint64_t seqno, int ring),
+	    TP_ARGS(dev, seqno, ring),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u64, seqno)
+			     __field(bool, ring)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   __entry->ring = ring;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%llu %s",
+		      __entry->dev, __entry->seqno,
+		      __entry->ring ? "RCL" : "BCL")
+);
+
 #endif /* _VC4_TRACE_H_ */
 
 /* This part must be outside protection */
