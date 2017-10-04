@@ -74,6 +74,19 @@ struct vc4_dev {
 	/* Protects bo_cache and bo_labels. */
 	struct mutex bo_lock;
 
+	/* Purgeable BO pool. All BOs in this pool can have their memory
+	 * reclaimed if the driver is unable to allocate new BOs. We also
+	 * keep stats related to the purge mechanism here.
+	 */
+	struct {
+		struct list_head list;
+		unsigned int num;
+		size_t size;
+		unsigned int purged_num;
+		size_t purged_size;
+		struct mutex lock;
+	} purgeable;
+
 	uint64_t dma_fence_context;
 
 	/* Sequence number for the last job queued in bin_job_list.
@@ -192,12 +205,36 @@ struct vc4_bo {
 	 * for user-allocated labels.
 	 */
 	int label;
+
+	/* Count the number of active users. This is needed to determine
+	 * whether we can the BO to the purgeable or not (when the BO is used
+	 * by the GPU or the display engine we can't purge it).
+	 */
+	refcount_t usecnt;
+
+	/* Store purgeable/purged state here */
+	u32 madv;
+	struct mutex madv_lock;
 };
 
 static inline struct vc4_bo *
 to_vc4_bo(struct drm_gem_object *bo)
 {
 	return (struct vc4_bo *)bo;
+}
+
+static inline bool vc4_bo_supports_madv(const struct vc4_bo *bo)
+{
+	switch (bo->label) {
+	case VC4_BO_TYPE_V3D:
+	case VC4_BO_TYPE_V3D_SHADER:
+	case VC4_BO_TYPE_DUMB:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
 }
 
 struct vc4_fence {
@@ -503,6 +540,7 @@ int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
+int vc4_fault(struct vm_fault *vmf);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
@@ -513,6 +551,10 @@ void *vc4_prime_vmap(struct drm_gem_object *obj);
 int vc4_bo_cache_init(struct drm_device *dev);
 void vc4_bo_cache_destroy(struct drm_device *dev);
 int vc4_bo_stats_debugfs(struct seq_file *m, void *arg);
+int vc4_bo_inc_usecnt(struct vc4_bo *bo);
+void vc4_bo_dec_usecnt(struct vc4_bo *bo);
+void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo);
+void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo);
 
 /* vc4_crtc.c */
 extern struct platform_driver vc4_crtc_driver;
@@ -557,6 +599,8 @@ void vc4_job_handle_completed(struct vc4_dev *vc4);
 int vc4_queue_seqno_cb(struct drm_device *dev,
 		       struct vc4_seqno_cb *cb, uint64_t seqno,
 		       void (*func)(struct vc4_seqno_cb *cb));
+int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
 
 /* vc4_hdmi.c */
 extern struct platform_driver vc4_hdmi_driver;
