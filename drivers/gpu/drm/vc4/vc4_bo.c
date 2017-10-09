@@ -33,6 +33,8 @@ static const char * const bo_type_names[] = {
 	"RCL",
 	"BCL",
 	"kernel BO cache",
+	"purgeable",
+	"purged",
 };
 
 static bool is_user_label(int label)
@@ -42,8 +44,7 @@ static bool is_user_label(int label)
 
 static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 {
-	size_t purgeable_size, purged_size;
-	int i, npurgeable, npurged;
+	int i;
 
 	for (i = 0; i < vc4->num_labels; i++) {
 		if (!vc4->bo_labels[i].num_allocated)
@@ -54,21 +55,6 @@ static void vc4_bo_stats_dump(struct vc4_dev *vc4)
 			 vc4->bo_labels[i].size_allocated / 1024,
 			 vc4->bo_labels[i].num_allocated);
 	}
-
-	mutex_lock(&vc4->purgeable.lock);
-	npurgeable = vc4->purgeable.num;
-	purgeable_size = vc4->purgeable.size;
-	purged_size = vc4->purgeable.purged_size;
-	npurged = vc4->purgeable.purged_num;
-	mutex_unlock(&vc4->purgeable.lock);
-
-	if (npurgeable)
-		DRM_INFO("%30s: %6dkb BOs (%d)\n", "userspace BO cache",
-			 purgeable_size / 1024, npurgeable);
-
-	if (npurged)
-		DRM_INFO("%30s: %6dkb BOs (%d)\n", "total purged BO",
-			 purged_size / 1024, npurged);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -77,8 +63,7 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	size_t purgeable_size, purged_size;
-	int i, npurgeable, npurged;
+	int i;
 
 	mutex_lock(&vc4->bo_lock);
 	for (i = 0; i < vc4->num_labels; i++) {
@@ -91,21 +76,6 @@ int vc4_bo_stats_debugfs(struct seq_file *m, void *unused)
 			   vc4->bo_labels[i].num_allocated);
 	}
 	mutex_unlock(&vc4->bo_lock);
-
-	mutex_lock(&vc4->purgeable.lock);
-	npurgeable = vc4->purgeable.num;
-	purgeable_size = vc4->purgeable.size;
-	purged_size = vc4->purgeable.purged_size;
-	npurged = vc4->purgeable.purged_num;
-	mutex_unlock(&vc4->purgeable.lock);
-
-	if (npurgeable)
-		seq_printf(m, "%30s: %6dkb BOs (%d)\n", "userspace BO cache",
-			   purgeable_size / 1024, npurgeable);
-
-	if (npurged)
-		seq_printf(m, "%30s: %6dkb BOs (%d)\n", "total purged BO",
-			   purged_size / 1024, npurged);
 
 	return 0;
 }
@@ -285,8 +255,9 @@ void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo)
 
 	mutex_lock(&vc4->purgeable.lock);
 	list_add_tail(&bo->size_head, &vc4->purgeable.list);
-	vc4->purgeable.num++;
-	vc4->purgeable.size += bo->base.base.size;
+	mutex_lock(&vc4->bo_lock);
+	vc4_bo_set_label(&bo->base.base, VC4_BO_TYPE_PURGEABLE);
+	mutex_unlock(&vc4->bo_lock);
 	mutex_unlock(&vc4->purgeable.lock);
 }
 
@@ -307,8 +278,9 @@ static void vc4_bo_remove_from_purgeable_pool_locked(struct vc4_bo *bo)
 	 * will work correctly even if it's a NOP.
 	 */
 	list_del_init(&bo->size_head);
-	vc4->purgeable.num--;
-	vc4->purgeable.size -= bo->base.base.size;
+	mutex_lock(&vc4->bo_lock);
+	vc4_bo_set_label(&bo->base.base, VC4_BO_TYPE_KERNEL);
+	mutex_unlock(&vc4->bo_lock);
 }
 
 void vc4_bo_remove_from_purgeable_pool(struct vc4_bo *bo)
@@ -324,6 +296,7 @@ static void vc4_bo_purge(struct drm_gem_object *obj)
 {
 	struct vc4_bo *bo = to_vc4_bo(obj);
 	struct drm_device *dev = obj->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
 	WARN_ON(!mutex_is_locked(&bo->madv_lock));
 	WARN_ON(bo->madv != VC4_MADV_DONTNEED);
@@ -335,6 +308,10 @@ static void vc4_bo_purge(struct drm_gem_object *obj)
 	dma_free_wc(dev->dev, obj->size, bo->base.vaddr, bo->base.paddr);
 	bo->base.vaddr = NULL;
 	bo->madv = __VC4_MADV_PURGED;
+
+	mutex_lock(&vc4->bo_lock);
+	vc4_bo_set_label(obj, VC4_BO_TYPE_PURGED);
+	mutex_unlock(&vc4->bo_lock);
 }
 
 static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
@@ -346,7 +323,6 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 		struct vc4_bo *bo = list_first_entry(&vc4->purgeable.list,
 						     struct vc4_bo, size_head);
 		struct drm_gem_object *obj = &bo->base.base;
-		size_t purged_size = 0;
 
 		vc4_bo_remove_from_purgeable_pool_locked(bo);
 
@@ -362,17 +338,10 @@ static void vc4_bo_userspace_cache_purge(struct drm_device *dev)
 		 * the BO madv one, vc4_gem_madvise_ioctl() may have changed
 		 * the bo->madv status. In this case, just skip this entry.
 		 */
-		if (bo->madv == VC4_MADV_DONTNEED) {
-			purged_size = bo->base.base.size;
+		if (bo->madv == VC4_MADV_DONTNEED)
 			vc4_bo_purge(obj);
-		}
 		mutex_unlock(&bo->madv_lock);
 		mutex_lock(&vc4->purgeable.lock);
-
-		if (purged_size) {
-			vc4->purgeable.purged_size += purged_size;
-			vc4->purgeable.purged_num++;
-		}
 	}
 	mutex_unlock(&vc4->purgeable.lock);
 }
