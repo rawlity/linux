@@ -1206,7 +1206,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 
@@ -1214,7 +1214,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	/* Only BOs exposed to userspace can be purged. */
 	if (WARN_ON(!vc4_bo_supports_madv(bo))) {
-		DRM_ERROR("madvise not supported on BO type %d\n", bo->label);
+		DRM_DEBUG("madvise not supported on BO type %d\n", bo->label);
 		ret = -EINVAL;
 		goto out_put_gem;
 	}
@@ -1223,7 +1223,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	 * not until proven otherwise.
 	 */
 	if (gem_obj->import_attach) {
-		DRM_ERROR("madvise not supported on imported BOs\n");
+		DRM_DEBUG("madvise not supported on imported BOs\n");
 		ret = -EINVAL;
 		goto out_put_gem;
 	}
