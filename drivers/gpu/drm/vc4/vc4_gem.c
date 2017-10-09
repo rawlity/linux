@@ -254,9 +254,6 @@ vc4_save_hang_state(struct drm_device *dev)
 	for (i = 0; i < kernel_state->user_state.bo_count; i++) {
 		struct vc4_bo *bo = to_vc4_bo(kernel_state->bo[i]);
 
-		if (!vc4_bo_supports_madv(bo))
-			continue;
-
 		mutex_lock(&bo->madv_lock);
 		if (!WARN_ON(bo->madv == __VC4_MADV_PURGED))
 			bo->madv = VC4_MADV_WILLNEED;
@@ -1211,13 +1208,6 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	}
 
 	bo = to_vc4_bo(gem_obj);
-
-	/* Only BOs exposed to userspace can be purged. */
-	if (WARN_ON(!vc4_bo_supports_madv(bo))) {
-		DRM_DEBUG("madvise not supported on BO type %d\n", bo->label);
-		ret = -EINVAL;
-		goto out_put_gem;
-	}
 
 	/* Not sure it's safe to purge imported BOs. Let's just assume it's
 	 * not until proven otherwise.

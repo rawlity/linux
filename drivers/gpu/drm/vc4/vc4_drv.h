@@ -221,20 +221,6 @@ to_vc4_bo(struct drm_gem_object *bo)
 	return (struct vc4_bo *)bo;
 }
 
-static inline bool vc4_bo_supports_madv(const struct vc4_bo *bo)
-{
-	switch (bo->label) {
-	case VC4_BO_TYPE_V3D:
-	case VC4_BO_TYPE_V3D_SHADER:
-	case VC4_BO_TYPE_DUMB:
-		return true;
-	default:
-		break;
-	}
-
-	return false;
-}
-
 struct vc4_fence {
 	struct dma_fence base;
 	struct drm_device *dev;
