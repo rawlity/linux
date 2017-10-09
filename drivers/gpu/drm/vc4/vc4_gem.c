@@ -1207,7 +1207,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	bo = to_vc4_bo(gem_obj);
