@@ -665,10 +665,10 @@ vc4_prime_export(struct drm_device *dev, struct drm_gem_object *obj, int flags)
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* Note: as soon as the BO is exported it becomes unpurgeable because
+	/* Note: as soon as the BO is exported it becomes unpurgeable, because
 	 * noone ever decrements the usecnt even if the reference held by the
 	 * exported BO is released. This shouldn't be a problem since we don't
-	 * expect exported BO to be marked as purgeable.
+	 * expect exported BOs to be marked as purgeable.
 	 */
 	ret = vc4_bo_inc_usecnt(bo);
 	if (ret) {
