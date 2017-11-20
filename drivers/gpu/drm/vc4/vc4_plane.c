@@ -503,8 +503,9 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		max_scale = INT_MAX;
 	}
 
-	ret = drm_plane_helper_check_state(state, &clip, min_scale, max_scale,
-					   true, true);
+	ret = drm_atomic_helper_check_plane_state(state, &clip,
+						  min_scale, max_scale,
+						  true, true);
 	if (ret)
 		return ret;
 
