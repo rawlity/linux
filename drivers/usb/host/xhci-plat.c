@@ -235,8 +235,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (ret)
 			goto put_hcd;
 	} else if (PTR_ERR(clk) == -EPROBE_DEFER) {
-		ret = -EPROBE_DEFER;
-		goto put_hcd;
+		clk = NULL;
 	}
 
 	xhci = hcd_to_xhci(hcd);
