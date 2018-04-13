@@ -40,7 +40,7 @@ v3d_init_hw_state(struct v3d_dev *v3d)
 	v3d_init_core(v3d, 0);
 }
 
-static void
+void
 v3d_idle_axi(struct v3d_dev *v3d, int core)
 {
 	V3D_CORE_WRITE(core, V3D_GMP_CFG, V3D_GMP_CFG_STOP_REQ);
@@ -422,6 +422,8 @@ v3d_exec_cleanup(struct kref *ref)
 	pm_runtime_mark_last_busy(v3d->dev);
 	pm_runtime_put_autosuspend(v3d->dev);
 
+	v3d_file_priv_put(exec->v3d_priv);
+
 	kfree(exec);
 }
 
@@ -541,6 +543,8 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	exec->render.start = args->rcl_start;
 	exec->render.end = args->rcl_end;
 	exec->v3d = v3d;
+	kref_get(&v3d_priv->refcount); /* put by exec completion */
+	exec->v3d_priv = v3d_priv;
 	INIT_LIST_HEAD(&exec->unref_list);
 
 	ret = v3d_cl_lookup_bos(dev, file_priv, args, exec);

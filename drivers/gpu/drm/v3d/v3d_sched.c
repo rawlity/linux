@@ -48,8 +48,12 @@ v3d_job_dependency(struct drm_sched_job *sched_job,
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 	struct v3d_exec_info *exec = job->exec;
+	struct v3d_dev *v3d = exec->v3d;
+	struct v3d_file_priv *v3d_priv = exec->v3d_priv;
 	enum v3d_queue q = job == &exec->bin ? V3D_BIN : V3D_RENDER;
 	struct dma_fence *fence;
+	unsigned long irqflags;
+	unsigned int i;
 
 	fence = job->in_fence;
 	if (fence) {
@@ -69,9 +73,46 @@ v3d_job_dependency(struct drm_sched_job *sched_job,
 		}
 	}
 
-	/* XXX: Wait on a fence for switching the GMP if necessary,
-	 * and then do so.
+	/* Once the job is otherwise ready to be scheduled, get our
+	 * file_priv inserted in the stream of switches of the GMP
+	 * table.
 	 */
+	spin_lock_irqsave(&v3d->job_lock, irqflags);
+	if (!job->gmp_sequenced) {
+		if (v3d->next_gmp != v3d_priv) {
+			v3d->next_gmp = v3d_priv;
+
+			for (i = 0; i < V3D_MAX_QUEUES; i++) {
+				/* The fences for the latest jobs
+				 * using the GMP become the fences
+				 * needed before we can start a job
+				 * using the new one.
+				 */
+				dma_fence_put(v3d->prev_gmp_fences[i]);
+				v3d->prev_gmp_fences[i] =
+					dma_fence_get(v3d->next_gmp_fences[i]);
+
+				/* Clear out the list of fences needed
+				 * before switching away from the new
+				 * next_gmp.
+				 */
+				dma_fence_put(v3d->next_gmp_fences[i]);
+				v3d->next_gmp_fences[i] = NULL;
+			}
+		}
+
+		/* Mark ourselves as the latest job using next_gmp on this
+		 * queue.
+		 */
+		v3d->next_gmp_fences[q] =
+			dma_fence_get(&sched_job->s_fence->finished);
+
+		for (i = 0; i < V3D_MAX_QUEUES; i++) {
+			job->gmp_fences[i] =
+				dma_fence_get(v3d->prev_gmp_fences[i]);
+		}
+	}
+	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 
 	return fence;
 }
@@ -89,10 +130,19 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	if (unlikely(job->base.s_fence->finished.error))
 		return NULL;
 
+	/* Can we avoid this flush when q==RENDER?  We need to be
+	 * careful of scheduling, though -- imagine job0 rendering to
+	 * texture and job1 reading, and them being executed as bin0,
+	 * bin1, render0, render1, so that render1's flush at bin time
+	 * wasn't enough.
+	 */
+	v3d_invalidate_caches(v3d);
+
 	/* Lock required around bin_job update vs
-	 * v3d_overflow_mem_work().
+	 * v3d_overflow_mem_work(), and updating programmed_gmp.
 	 */
 	spin_lock_irqsave(&v3d->job_lock, irqflags);
+
 	if (q == V3D_BIN) {
 		v3d->bin_job = job->exec;
 
@@ -103,15 +153,13 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	} else {
 		v3d->render_job = job->exec;
 	}
-	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 
-	/* Can we avoid this flush when q==RENDER?  We need to be
-	 * careful of scheduling, though -- imagine job0 rendering to
-	 * texture and job1 reading, and them being executed as bin0,
-	 * bin1, render0, render1, so that render1's flush at bin time
-	 * wasn't enough.
-	 */
-	v3d_invalidate_caches(v3d);
+	if (v3d->programmed_gmp != exec->v3d_priv) {
+		v3d->programmed_gmp = exec->v3d_priv;
+		v3d_mmu_set_gmp(exec->v3d_priv);
+	}
+
+	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 
 	fence = v3d_fence_create(v3d, q);
 	if (IS_ERR(fence))

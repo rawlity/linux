@@ -299,6 +299,30 @@ v3d_prime_import_sg_table(struct drm_device *dev,
 	return obj;
 }
 
+/* v3d_gem_object_open - driver hook called at gem BO handle creation time.
+ *
+ * This is our chance to add the BO to our GMP so that jobs can
+ * reference it.
+ */
+int v3d_gem_object_open(struct drm_gem_object *obj,
+			struct drm_file *file_priv)
+{
+	struct v3d_bo *bo = to_v3d_bo(obj);
+	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
+
+	v3d_mmu_insert_gmp(bo, v3d_priv);
+
+	return 0;
+}
+
+void v3d_gem_object_close(struct drm_gem_object *obj,
+			 struct drm_file *file_priv)
+{
+	/* XXX: We need to remove the object from the GMP, but we need
+	 * to delay that until any jobs using the BO are done.
+	 */
+}
+
 int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {

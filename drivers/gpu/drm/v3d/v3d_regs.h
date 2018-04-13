@@ -298,7 +298,7 @@
 #define V3D_PCTR_0_PCTRX(x)                            (V3D_PCTR_0_PCTR0 + \
 							4 * (x))
 #define V3D_GMP_STATUS                                 0x00800
-# define V3D_GMP_STATUS_GMPRST                         BIT(31)
+# define V3D_GMP_STATUS_V3_GMPRST                      BIT(31)
 # define V3D_GMP_STATUS_WR_COUNT_MASK                  V3D_MASK(30, 24)
 # define V3D_GMP_STATUS_WR_COUNT_SHIFT                 24
 # define V3D_GMP_STATUS_RD_COUNT_MASK                  V3D_MASK(22, 16)
@@ -311,13 +311,18 @@
 # define V3D_GMP_STATUS_VIO                            BIT(0)
 
 #define V3D_GMP_CFG                                    0x00804
+# define V3D_GMP_CFG_V4_GMPRST                         BIT(31)
 # define V3D_GMP_CFG_LBURSTEN                          BIT(3)
-# define V3D_GMP_CFG_PGCRSEN                           BIT()
+# define V3D_GMP_CFG_PGCRSEN                           BIT(2)
 # define V3D_GMP_CFG_STOP_REQ                          BIT(1)
 # define V3D_GMP_CFG_PROT_ENABLE                       BIT(0)
 
 #define V3D_GMP_VIO_ADDR                               0x00808
 #define V3D_GMP_VIO_TYPE                               0x0080c
+# define V3D_GMP_VIO_TYPE_VALID                        BIT(31)
+# define V3D_GMP_VIO_TYPE_WRITE                        BIT(30)
+# define V3D_GMP_VIO_TYPE_ID_MASK                      V3D_MASK(24, 16)
+# define V3D_GMP_VIO_TYPE_ID_SHIFT                     16
 #define V3D_GMP_TABLE_ADDR                             0x00810
 #define V3D_GMP_CLEAR_LOAD                             0x00814
 #define V3D_GMP_PRESERVE_LOAD                          0x00818

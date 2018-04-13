@@ -10,6 +10,7 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #define GMP_GRANULARITY (128 * 1024)
+#define GMP_SIZE 8192
 
 /* Enum for each of the V3D queues.  We maintain various queue
  * tracking as an array because at some point we'll want to support
@@ -77,10 +78,21 @@ struct v3d_dev {
 
 	struct v3d_queue_state queue[V3D_MAX_QUEUES];
 
-	/* Spinlock used to synchronize the overflow memory
-	 * management against bin job submission.
+	/* Spinlock used to synchronize the GMP sequencing and
+	 * overflow memory management.
 	 */
 	spinlock_t job_lock;
+
+	/* Current GMP table loaded in the HW. */
+	struct v3d_file_priv *programmed_gmp;
+	/* The latest GMP table to be sequenced for being set into the HW. */
+	struct v3d_file_priv *next_gmp;
+	/* Fences required to switch from the previous next_gmp to
+	 * this one.
+	 */
+	struct dma_fence *prev_gmp_fences[V3D_MAX_QUEUES];
+	/* Fences for the latest jobs using next_gmp. */
+	struct dma_fence *next_gmp_fences[V3D_MAX_QUEUES];
 
 	/* Protects bo_stats */
 	struct mutex bo_lock;
@@ -108,9 +120,16 @@ to_v3d_dev(struct drm_device *dev)
 	return (struct v3d_dev *)dev->dev_private;
 }
 
-/* The per-fd struct, which tracks the MMU mappings. */
+/* The per-fd struct, which tracks the GMP mappings.  This lasts until
+ * the fd is closed and the last exec_info using it is completed.
+ */
 struct v3d_file_priv {
+	struct kref refcount;
+
 	struct v3d_dev *v3d;
+
+	volatile u32 *gmp;
+	dma_addr_t gmp_paddr;
 
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
 };
@@ -188,6 +207,9 @@ struct v3d_job {
 	/* v3d fence to be signaled by IRQ handler when the job is complete. */
 	struct dma_fence *done_fence;
 
+	bool gmp_sequenced;
+	struct dma_fence *gmp_fences[V3D_MAX_QUEUES];
+
 	/* GPU virtual addresses of the start/end of the CL job. */
 	u32 start, end;
 
@@ -196,6 +218,7 @@ struct v3d_job {
 
 struct v3d_exec_info {
 	struct v3d_dev *v3d;
+	struct v3d_file_priv *v3d_priv;
 
 	struct v3d_job bin, render;
 
@@ -273,9 +296,16 @@ struct sg_table *v3d_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
 						 struct sg_table *sgt);
+int v3d_gem_object_open(struct drm_gem_object *obj,
+			struct drm_file *file_priv);
+void v3d_gem_object_close(struct drm_gem_object *obj,
+			  struct drm_file *file_priv);
 
 /* v3d_debugfs.c */
 int v3d_debugfs_init(struct drm_minor *minor);
+
+/* v3d_drv.c */
+void v3d_file_priv_put(struct v3d_file_priv *v3d_priv);
 
 /* v3d_fence.c */
 extern const struct dma_fence_ops v3d_fence_ops;
@@ -292,6 +322,7 @@ void v3d_exec_put(struct v3d_exec_info *exec);
 void v3d_reset(struct v3d_dev *v3d);
 void v3d_invalidate_caches(struct v3d_dev *v3d);
 void v3d_flush_caches(struct v3d_dev *v3d);
+void v3d_idle_axi(struct v3d_dev *v3d, int core);
 
 /* v3d_irq.c */
 void v3d_irq_init(struct v3d_dev *v3d);
@@ -305,6 +336,9 @@ int v3d_mmu_get_offset(struct drm_file *file_priv, struct v3d_bo *bo,
 int v3d_mmu_set_page_table(struct v3d_dev *v3d);
 void v3d_mmu_insert_ptes(struct v3d_bo *bo);
 void v3d_mmu_remove_ptes(struct v3d_bo *bo);
+void v3d_mmu_insert_gmp(struct v3d_bo *bo, struct v3d_file_priv *v3d_priv);
+void v3d_mmu_remove_gmp(struct v3d_bo *bo, struct v3d_file_priv *v3d_priv);
+void v3d_mmu_set_gmp(struct v3d_file_priv *v3d_priv);
 
 /* v3d_sched.c */
 int v3d_sched_init(struct v3d_dev *v3d);

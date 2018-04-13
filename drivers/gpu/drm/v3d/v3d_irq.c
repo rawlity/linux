@@ -54,6 +54,8 @@ v3d_overflow_mem_work(struct work_struct *work)
 		goto out;
 	}
 
+	/* XXX: tracking */
+	v3d_mmu_insert_gmp(bo, v3d->bin_job->v3d_priv);
 	drm_gem_object_get(&bo->base);
 	list_add_tail(&bo->unref_head, &v3d->bin_job->unref_list);
 	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
@@ -63,6 +65,35 @@ v3d_overflow_mem_work(struct work_struct *work)
 
 out:
 	drm_gem_object_put_unlocked(&bo->base);
+}
+
+static void
+v3d_handle_gmpv(struct v3d_dev *v3d)
+{
+	u32 type = V3D_READ(V3D_GMP_VIO_TYPE);
+
+	if (type & V3D_GMP_VIO_TYPE_VALID) {
+		static const char *clients[] = {
+			"L2C", "CLE", "PTB", "PSE",
+			"VCD", "VDW", "L2T", "TLB",
+			"TFU",
+		};
+		const char *client = "???";
+		u32 addr = V3D_READ(V3D_GMP_VIO_ADDR);
+		u32 id = V3D_GET_FIELD(type, V3D_GMP_VIO_TYPE_ID);
+
+		if (id < ARRAY_SIZE(clients))
+			client = clients[id];
+
+		dev_err(v3d->dev, "GMP violation (%s) at 0x%08x by %s\n",
+			(type & V3D_GMP_VIO_TYPE_WRITE) ? "write" : "read",
+			addr,
+			client);
+
+		/* XXX: Reset GMP. */
+	} else {
+		dev_err(v3d->dev, "Spurious GMPV?\n");
+	}
 }
 
 static irqreturn_t
@@ -99,8 +130,10 @@ v3d_irq(int irq, void *arg)
 	/* We shouldn't be triggering these if we have GMP in
 	 * always-allowed mode.
 	 */
-	if (intsts & V3D_INT_GMPV)
-		dev_err(v3d->dev, "GMP violation\n");
+	if (intsts & V3D_INT_GMPV) {
+		v3d_handle_gmpv(v3d);
+		status = IRQ_HANDLED;
+	}
 
 	return status;
 }

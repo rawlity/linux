@@ -13,15 +13,18 @@
  * and switching between them is expensive, we load all BOs into the
  * same 4GB address space.
  *
- * To protect clients from each other, we should use the GMP to
- * quickly mask out (at 128kb granularity) what pages are available to
- * each client.  This is not yet implemented.
+ * To protect clients from each other, we use the GMP to quickly mask
+ * out (at 128kb granularity) what pages are available to each client.
+ * This means that BOs need to be allocated at 128kb VA granularity
+ * (so each can be individually masked from the clients without access
+ * to it), which limits us to 32k objects total.
  */
 
 #include "v3d_drv.h"
 #include "v3d_regs.h"
 
 #define V3D_MMU_PAGE_SHIFT 12
+#define V3D_GMP_PAGE_SHIFT 17
 
 /* Note: All PTEs for the 1MB superpage must be filled with the
  * superpage bit set.
@@ -119,4 +122,73 @@ void v3d_mmu_remove_ptes(struct v3d_bo *bo)
 
 	if (v3d_mmu_flush_all(v3d))
 		dev_err(v3d->dev, "MMU flush timeout\n");
+}
+
+void v3d_mmu_insert_gmp(struct v3d_bo *bo, struct v3d_file_priv *v3d_priv)
+{
+	unsigned page;
+	unsigned first = bo->node.start >> (V3D_GMP_PAGE_SHIFT -
+					    V3D_MMU_PAGE_SHIFT);
+	unsigned last = first + ((bo->base.size - 1) >> V3D_GMP_PAGE_SHIFT);
+
+	/* 2 bits per entry, so 16 entries per 32-bit word. */
+	for (page = first; page <= last; page++) {
+		v3d_priv->gmp[page >> 4] |= 3 << ((page & 15) << 1);
+	}
+}
+
+void v3d_mmu_remove_gmp(struct v3d_bo *bo, struct v3d_file_priv *v3d_priv)
+{
+	unsigned page;
+	unsigned first = bo->node.start >> (V3D_GMP_PAGE_SHIFT -
+					    V3D_MMU_PAGE_SHIFT);
+	unsigned last = first + ((bo->base.size - 1) >> V3D_GMP_PAGE_SHIFT);
+
+	for (page = first; page <= last; page++) {
+		v3d_priv->gmp[page >> 4] &= ~(3 << ((page & 15) << 1));
+	}
+}
+
+void v3d_mmu_set_gmp(struct v3d_file_priv *v3d_priv)
+{
+	struct v3d_dev *v3d = v3d_priv->v3d;
+	unsigned core = 0;
+	u32 status;
+
+	/* Make sure that any preceding accesses have made it through
+	 * the GMP.
+	 *
+	 * XXX: Do we need this if the rendering engines are
+	 * successfully idled?
+	 */
+	v3d_idle_axi(v3d, core);
+
+	/* We should only be trying to switch GMP when the GPU
+	 * is already inactive, which is required by the GMP
+	 * HW.
+	 */
+	status = V3D_CORE_READ(core, V3D_GMP_STATUS);
+	WARN_ON_ONCE(status & V3D_GMP_STATUS_WR_COUNT_MASK);
+	WARN_ON_ONCE(status & V3D_GMP_STATUS_RD_COUNT_MASK);
+
+	if (v3d->ver >= 40)
+		V3D_CORE_WRITE(core, V3D_GMP_STATUS, V3D_GMP_STATUS_V3_GMPRST);
+	else
+		V3D_CORE_WRITE(core, V3D_GMP_CFG, V3D_GMP_CFG_V4_GMPRST);
+
+	V3D_CORE_WRITE(core, V3D_GMP_CFG, V3D_GMP_CFG_PROT_ENABLE);
+
+	V3D_CORE_WRITE(core, V3D_GMP_TABLE_ADDR, v3d_priv->gmp_paddr);
+
+	/* Reload the entire GMP.  We could reduce the overhead of
+	 * this by only the bit per 128MB region occupied by the new
+	 * GMP table.
+	 */
+	V3D_CORE_WRITE(core, V3D_GMP_CLEAR_LOAD, ~0);
+
+	/* XXX: Do we need to wait for this to go low before starting
+	 * rendering?
+	 */
+	while (V3D_CORE_READ(core, V3D_GMP_STATUS) & V3D_GMP_STATUS_CFG_BUSY)
+		udelay(1);
 }

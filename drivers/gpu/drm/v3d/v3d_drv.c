@@ -203,6 +203,19 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 
 	v3d_priv->v3d = v3d;
 
+	v3d_priv->gmp = dma_alloc_wc(v3d->dev, GMP_SIZE,
+				     &v3d_priv->gmp_paddr,
+				     GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN);
+	if (!v3d_priv->gmp) {
+		kfree(v3d_priv);
+		dev_err(v3d->dev,
+			"Failed to allocate GMP table. "
+			"Please ensure you have CMA enabled.\n");
+		return -ENOMEM;
+	}
+
+	kref_init(&v3d_priv->refcount);
+
 	for (i = 0; i < V3D_MAX_QUEUES; i++) {
 		drm_sched_entity_init(&v3d->queue[i].sched,
 				      &v3d_priv->sched_entity[i],
@@ -216,6 +229,32 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 }
 
 static void
+v3d_priv_free(struct kref *ref)
+{
+	struct v3d_file_priv *v3d_priv = container_of(ref, struct v3d_file_priv,
+						      refcount);
+	struct v3d_dev *v3d = v3d_priv->v3d;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&v3d->job_lock, irqflags);
+	if (v3d->programmed_gmp == v3d_priv)
+		v3d->programmed_gmp = NULL;
+	if (v3d->next_gmp == v3d_priv)
+		v3d->next_gmp = NULL;
+	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
+
+	dma_free_coherent(v3d->dev, GMP_SIZE, (void *)v3d_priv->gmp,
+			  v3d_priv->gmp_paddr);
+
+	kfree(v3d_priv);
+}
+
+void v3d_file_priv_put(struct v3d_file_priv *v3d_priv)
+{
+	kref_put(&v3d_priv->refcount, v3d_priv_free);
+}
+
+static void
 v3d_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
@@ -226,6 +265,9 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 		drm_sched_entity_fini(&v3d->queue[q].sched,
 				      &v3d_priv->sched_entity[q]);
 	}
+
+	dma_free_coherent(v3d->dev, GMP_SIZE, (void *)v3d_priv->gmp,
+			  v3d_priv->gmp_paddr);
 
 	kfree(v3d_priv);
 }
@@ -299,6 +341,8 @@ static struct drm_driver v3d_drm_driver = {
 	.debugfs_init = v3d_debugfs_init,
 #endif
 
+	.gem_open_object = v3d_gem_object_open,
+	.gem_close_object = v3d_gem_object_close,
 	.gem_free_object_unlocked = v3d_free_object,
 	.gem_vm_ops = &v3d_vm_ops,
 	.dumb_create = v3d_dumb_create,
