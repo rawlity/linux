@@ -101,6 +101,9 @@ struct drm_v3d_submit_cl {
 
 	/* Number of BO handles passed in (size is that times 4). */
 	__u32 bo_handle_count;
+
+	/* Pad, must be zero-filled. */
+	__u32 pad;
 };
 
 /**

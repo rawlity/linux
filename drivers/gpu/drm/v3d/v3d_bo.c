@@ -325,6 +325,11 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	struct v3d_bo *bo = NULL;
 	int ret;
 
+	if (argrs->flags != 0) {
+		DRM_INFO("unknown create_bo flags: %d\n", args->flags);
+		return -EINVAL;
+	}
+
 	bo = v3d_bo_create(dev, file_priv, PAGE_ALIGN(args->size));
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
@@ -343,6 +348,11 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_v3d_mmap_bo *args = data;
 	struct drm_gem_object *gem_obj;
 	int ret;
+
+	if (argrs->flags != 0) {
+		DRM_INFO("unknown create_bo flags: %d\n", args->flags);
+		return -EINVAL;
+	}
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {

@@ -503,6 +503,11 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct drm_syncobj *sync_out;
 	int ret = 0;
 
+	if (argrs->pad != 0) {
+		DRM_INFO("pad must be zero: %d\n", args->pad);
+		return -EINVAL;
+	}
+
 	exec = kcalloc(1, sizeof(*exec), GFP_KERNEL);
 	if (!exec)
 		return -ENOMEM;
