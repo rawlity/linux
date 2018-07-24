@@ -126,10 +126,15 @@ void v3d_mmu_remove_ptes(struct v3d_bo *bo)
 
 void v3d_mmu_insert_gmp(struct v3d_bo *bo, struct v3d_file_priv *v3d_priv)
 {
+	struct v3d_dev *v3d = to_v3d_dev(bo->base.dev);
 	unsigned page;
 	unsigned first = bo->node.start >> (V3D_GMP_PAGE_SHIFT -
 					    V3D_MMU_PAGE_SHIFT);
 	unsigned last = first + ((bo->base.size - 1) >> V3D_GMP_PAGE_SHIFT);
+
+	dev_err(v3d->dev, "Insert GMP %p 0x%08x..0x%08x\n", v3d_priv,
+		first << V3D_GMP_PAGE_SHIFT,
+		((last + 1) << V3D_GMP_PAGE_SHIFT) - 1);
 
 	/* 2 bits per entry, so 16 entries per 32-bit word. */
 	for (page = first; page <= last; page++) {
@@ -139,10 +144,15 @@ void v3d_mmu_insert_gmp(struct v3d_bo *bo, struct v3d_file_priv *v3d_priv)
 
 void v3d_mmu_remove_gmp(struct v3d_bo *bo, struct v3d_file_priv *v3d_priv)
 {
+	struct v3d_dev *v3d = to_v3d_dev(bo->base.dev);
 	unsigned page;
 	unsigned first = bo->node.start >> (V3D_GMP_PAGE_SHIFT -
 					    V3D_MMU_PAGE_SHIFT);
 	unsigned last = first + ((bo->base.size - 1) >> V3D_GMP_PAGE_SHIFT);
+
+	dev_err(v3d->dev, "Remove GMP %p 0x%08x..0x%08x\n", v3d_priv,
+		first << V3D_GMP_PAGE_SHIFT,
+		((last + 1) << V3D_GMP_PAGE_SHIFT) - 1);
 
 	for (page = first; page <= last; page++) {
 		v3d_priv->gmp[page >> 4] &= ~(3 << ((page & 15) << 1));
@@ -154,6 +164,9 @@ void v3d_mmu_set_gmp(struct v3d_file_priv *v3d_priv)
 	struct v3d_dev *v3d = v3d_priv->v3d;
 	unsigned core = 0;
 	u32 status;
+
+	dev_err(v3d->dev, "Set GMP %p to table at 0x%08x\n",
+		v3d_priv, (int)v3d_priv->gmp_paddr);
 
 	/* Make sure that any preceding accesses have made it through
 	 * the GMP.
@@ -171,10 +184,12 @@ void v3d_mmu_set_gmp(struct v3d_file_priv *v3d_priv)
 	WARN_ON_ONCE(status & V3D_GMP_STATUS_WR_COUNT_MASK);
 	WARN_ON_ONCE(status & V3D_GMP_STATUS_RD_COUNT_MASK);
 
+	dev_err(v3d->dev, "Start GMP reset\n");
 	if (v3d->ver >= 40)
 		V3D_CORE_WRITE(core, V3D_GMP_STATUS, V3D_GMP_STATUS_V3_GMPRST);
 	else
 		V3D_CORE_WRITE(core, V3D_GMP_CFG, V3D_GMP_CFG_V4_GMPRST);
+	dev_err(v3d->dev, "Done GMP reset\n");
 
 	V3D_CORE_WRITE(core, V3D_GMP_CFG, V3D_GMP_CFG_PROT_ENABLE);
 

@@ -570,8 +570,10 @@ static void drm_sched_job_finish(struct work_struct *work)
 		next = list_first_entry_or_null(&sched->ring_mirror_list,
 						struct drm_sched_job, node);
 
-		if (next)
+		if (next) {
+			pr_err("schedule timeout\n");
 			schedule_delayed_work(&next->work_tdr, sched->timeout);
+		}
 	}
 	spin_unlock(&sched->job_list_lock);
 	dma_fence_put(&s_job->s_fence->finished);
@@ -597,8 +599,10 @@ static void drm_sched_job_begin(struct drm_sched_job *s_job)
 	list_add_tail(&s_job->node, &sched->ring_mirror_list);
 	if (sched->timeout != MAX_SCHEDULE_TIMEOUT &&
 	    list_first_entry_or_null(&sched->ring_mirror_list,
-				     struct drm_sched_job, node) == s_job)
+				     struct drm_sched_job, node) == s_job) {
+		pr_err("schedule timeout\n");
 		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
+	}
 	spin_unlock(&sched->job_list_lock);
 }
 
@@ -676,8 +680,10 @@ void drm_sched_job_recovery(struct drm_gpu_scheduler *sched)
 	spin_lock(&sched->job_list_lock);
 	s_job = list_first_entry_or_null(&sched->ring_mirror_list,
 					 struct drm_sched_job, node);
-	if (s_job && sched->timeout != MAX_SCHEDULE_TIMEOUT)
+	if (s_job && sched->timeout != MAX_SCHEDULE_TIMEOUT) {
+		pr_err("schedule timeout\n");
 		schedule_delayed_work(&s_job->work_tdr, sched->timeout);
+	}
 
 	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {
 		struct drm_sched_fence *s_fence = s_job->s_fence;

@@ -155,8 +155,10 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	}
 
 	if (v3d->programmed_gmp != exec->v3d_priv) {
+		dev_err(v3d->dev, "Start programming GMP\n");
 		v3d->programmed_gmp = exec->v3d_priv;
 		v3d_mmu_set_gmp(exec->v3d_priv);
+		dev_err(v3d->dev, "Done programming GMP\n");
 	}
 
 	spin_unlock_irqrestore(&v3d->job_lock, irqflags);
@@ -191,6 +193,7 @@ static struct dma_fence *v3d_job_run(struct drm_sched_job *sched_job)
 	 */
 	V3D_CORE_WRITE(0, V3D_CLE_CTNQBA(q), job->start);
 	V3D_CORE_WRITE(0, V3D_CLE_CTNQEA(q), job->end);
+	dev_err(v3d->dev, "Emitted job\n");
 
 	return fence;
 }
