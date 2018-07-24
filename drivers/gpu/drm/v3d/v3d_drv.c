@@ -272,7 +272,7 @@ static int v3d_dumb_create(struct drm_file *file_priv,
 	args->pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 	args->size = args->pitch * args->height;
 
-	bo = v3d_bo_create(drm, file_priv, args->size);
+	bo = v3d_bo_create(drm, args->size);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 

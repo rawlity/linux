@@ -258,8 +258,7 @@ static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 
 /* v3d_bo.c */
 void v3d_free_object(struct drm_gem_object *gem_obj);
-struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
-			     size_t size);
+struct v3d_bo *v3d_bo_create(struct drm_device *dev, size_t size);
 int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,

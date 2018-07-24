@@ -31,7 +31,7 @@ v3d_overflow_mem_work(struct work_struct *work)
 	struct v3d_dev *v3d =
 		container_of(work, struct v3d_dev, overflow_mem_work);
 	struct drm_device *dev = &v3d->drm;
-	struct v3d_bo *bo = v3d_bo_create(dev, NULL /* XXX: GMP */, 256 * 1024);
+	struct v3d_bo *bo = v3d_bo_create(dev, 256 * 1024);
 	unsigned long irqflags;
 
 	if (IS_ERR(bo)) {

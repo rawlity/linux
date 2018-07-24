@@ -142,8 +142,7 @@ free_bo:
 	return ERR_PTR(ret);
 }
 
-struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
-			     size_t unaligned_size)
+struct v3d_bo *v3d_bo_create(struct drm_device *dev, size_t unaligned_size)
 {
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct drm_gem_object *obj;
@@ -312,7 +311,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	bo = v3d_bo_create(dev, file_priv, PAGE_ALIGN(args->size));
+	bo = v3d_bo_create(dev, PAGE_ALIGN(args->size));
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
