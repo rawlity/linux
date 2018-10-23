@@ -383,6 +383,20 @@
 				brcm,pins = <42 43>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
 			};
+			pitft_pins: pitft_pins {
+                                brcm,pins = <24 25>;
+                                brcm,function = <0 1>; /* in out */
+                                brcm,pull = <2 0>; /* pullup none */
+                        };
+			spi0_pins: spi0_pins {
+				brcm,pins = <9 10 11>;
+				brcm,function = <4>; /* alt0 */
+			};
+
+			spi0_cs_pins: spi0_cs_pins {
+				brcm,pins = <8 7>;
+				brcm,function = <1>; /* output */
+			};
 		};
 
 		uart0: serial@7e201000 {
@@ -423,7 +437,24 @@
 			clocks = <&clocks BCM2835_CLOCK_VPU>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi0_pins &spi0_cs_pins>;
+			cs-gpios = <&gpio 8 1>, <&gpio 7 1>;
+
+			pitft: pitft@0{
+                                compatible = "adafruit,yx350hv15";
+                                reg = <0>;
+                                pinctrl-names = "default";
+                                pinctrl-0 = <&pitft_pins>;
+                                spi-max-frequency = <32000000>;
+                                rotation = <90>;
+                                fps = <25>;
+                                bgr;
+                                buswidth = <8>;
+                                dc-gpios = <&gpio 25 0>;
+                                debug = <0>;
+                        };
 		};
 
 		i2c0: i2c@7e205000 {
