@@ -384,7 +384,7 @@ int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 	if (ret)
 		return ret;
 
-	tdev->drm->mode_config.preferred_depth = 16;
+	tdev->drm->mode_config.preferred_depth = 24;
 	mipi->rotation = rotation;
 
 	drm_mode_config_reset(tdev->drm);
